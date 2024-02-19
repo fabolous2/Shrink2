@@ -1,0 +1,10 @@
+{
+    "greeting": "👋🏻 Привет, {first_name}!\n\n📨 Be Twin — сервис автоматической массовой email-рассылки для битмейкеров\n\n<a href = \"https://telegra.ph/Kak-rabotaet-Be-Twin-02-11\">Как работает Be Twin?</a> |<a href = \"https://t.me/urtwinews\"> Be Twin News </a>",
+    "support": "👀 Опиши проблему, которая у тебя возникла ⬇️\n<blockquote>Вопросы, предложения, сотрудничество тоже сюда!</blockquote>",
+    "registration_info": "Для регистрации требуется:\n✉️ Gmail\n💳 Пароль приложения\n\n<a href = \"https://telegra.ph/Podklyuchaem-Google-Akkaunt--Le-Pair-02-01\">Подробнее о том, как происходит регистрация</a>",
+    "profile_content": "🧸 Профиль {first_name}\n———\n✉️ Gmail:\n└ {email}\n\n🎟 Подписка: \n└ {premium}\n———\n<a href =\"https://telegra.ph/Podpiska-na-Be-Twin-02-09\">О подписках </a>",
+    "not_registered": "К сожалению у вас еще нет аккаунта 🤷🏻‍\n️\nЧтобы смотреть свой профиль пройдите регистрацию ⬇️",
+    "mailing_registration": "К сожалению у вас еще нет аккаунта 🤷🏻 \n\nЧтобы запустить рассылку нужно пройти регистрацию ⬇️",
+    "choose_type_of_mailing": "📮 Выберите тип рассылки ниже:",
+    "how_the_bot_works": "📩 Shrink — сервис массовой рассылки почты для битмейкеров\n\nКак работает наш бот? (https://telegra.ph/Kak-rabotaet-Shrink-05-23)"
+}
