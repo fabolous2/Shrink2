@@ -24,6 +24,7 @@ back_to_profile_button = create_inline_button("⬅️ Назад", "profile")
 back_to_log_out_menu_button = create_inline_button("⬅️ Назад", "quit_profile")
 log_out_for_sure_button = create_inline_button("✅ Выйти", "quit")
 back_to_main_menu_button = create_inline_button("⬅Back", "main_menu")
+change_user_profile_button = create_inline_button("🧬 Сменить профиль", "quit_profile")
 
 
 
@@ -41,3 +42,4 @@ have_questions_kb_markup = create_inline_keyboard([have_questions_button])
 quit_profile_kb_markup = create_inline_keyboard([support_button], [pre_log_out_button], [back_to_profile_button])
 log_out_for_sure_markup = create_inline_keyboard([log_out_for_sure_button], [back_to_log_out_menu_button])
 back_to_main_menu_markup = create_inline_keyboard([back_to_main_menu_button])
+change_profile_markup = create_inline_keyboard([change_user_profile_button], [back_to_main_menu_button])

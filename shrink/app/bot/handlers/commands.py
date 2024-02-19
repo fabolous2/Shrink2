@@ -9,15 +9,16 @@ from dishka.integrations.aiogram import inject, Depends
 
 from app.models import User
 from app.services import UserService
-from app.bot.utils import get_greeting, get_registration_info, get_profile_content, get_not_registered
+from app.bot.utils import get_greeting, get_registration_info, get_profile_content,\
+      get_not_registered, get_describe_problem_text
 from app.main.config import ADMIN_ID
 
-from keyboard.inline import profile_inline_kb_markup, registration_mailing_kb_markup, сhoose_mailing_type_kb_markup
+from keyboard.inline import profile_inline_kb_markup, registration_mailing_kb_markup, сhoose_mailing_type_kb_markup, change_profile_markup
 
 
 commands_router = Router(name=__name__)
 
-
+#! /Start
 @commands_router.message(CommandStart())
 @inject
 async def start_command_handler(message: Message, user_service: Annotated[UserService, Depends()]) -> None:
@@ -26,6 +27,7 @@ async def start_command_handler(message: Message, user_service: Annotated[UserSe
     # await message.answer(reply_markup=reply.start_markup,disable_web_page_preview=True)
 
 
+#! Starting Registration Process
 @commands_router.message(Command("register"))
 async def register_profile_handler(message: Message, state: FSMContext) -> None:
     await message.answer(get_registration_info(), disable_web_page_preview=True)
@@ -33,6 +35,7 @@ async def register_profile_handler(message: Message, state: FSMContext) -> None:
     # await state.set_state(Reg.email_from)
 
 
+#! Getting Profile Content
 @commands_router.message(Command("profile"))
 @inject
 async def profile_content_handler(message: Message, state: FSMContext, user_service: Annotated[UserService, Depends()]) -> None:
@@ -41,30 +44,27 @@ async def profile_content_handler(message: Message, state: FSMContext, user_serv
 
     if email_is_filled:
         await message.edit_text(get_profile_content(),
-                                reply_markup=inline_builder(
-                                    ["🧬 Сменить профиль", "⬅ Назад"],
-                                    ["quit_profile", "main_menu"],
-                                    [1, 1]),
+                                reply_markup=change_profile_markup,
                                 disable_web_page_preview=True)
     else:
         await message.answer(get_not_registered(),reply_markup=profile_inline_kb_markup)
 
 
-#КОММАНДА /SUPPORT
+#! /Support
 @commands_router.message(Command("support"))
-async def cmd_sup(message: Message, state: FSMContext):
+async def cmd_sup(message: Message, state: FSMContext) -> None:
     user_id = message.from_user.id
     
     if user_id == ADMIN_ID:
         await message.answer("АДМИН")
         await state.set_state(Sup.check_admin)
+
     else:
         await state.set_state(Sup.text)
-        await message.answer("""👀 Опиши проблему, которая у тебя возникла ⬇️
-<blockquote>Вопросы, предложения, сотрудничество тоже сюда!</blockquote>""")
+        await message.answer(get_describe_problem_text())
 
 
-#КОММАНДА /MAILING
+#! /Mailing
 @commands_router.message(Command("mailing"))
 async def get_mail(message: Message, user_service: Annotated[UserService, Depends()]) -> None:
     user_id = message.from_user.id
