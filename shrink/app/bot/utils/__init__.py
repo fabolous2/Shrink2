@@ -14,8 +14,10 @@ from .bot_answer_text import (
     get_basic_subscription_price,
     get_premium_subscription_price,
     get_wait_email_addresses_text,
-    get_describe_problem_text
+    get_describe_problem_text,
+    get_pre_quit_text
 )
+from .email import parse_emails
 
 
 __all__ = [
@@ -34,5 +36,8 @@ __all__ = [
     "get_basic_subscription_price",
     "get_premium_subscription_price",
     "get_wait_email_addresses_text",
-    "get_describe_problem_text"
+    "get_describe_problem_text",
+    "get_pre_quit_text"
+
+    "parse_emails",
 ]

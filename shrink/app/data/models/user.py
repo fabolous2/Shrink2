@@ -1,21 +1,17 @@
-from .base import Base
+from sqlalchemy import Column, Integer, String, Boolean, Time, Enum
 
-from sqlalchemy import Column, Integer, String, Boolean, Time
+from app.data.models.base import Base
+from app.models.user import UserSubscription
 
-# унаследовали базовую модель конкретной моделью
 
 class User(Base):
-    __tablename__ = "user_info" # указываешь имя таблицы в самой базе данных
+    __tablename__ = "users"
 
-    """
-    на первое место указываешь имя поля в бд
-    на второе тип, так как я id - первичный ключ, то так
-    и пишем, primary_key=True
-    """
     id = Column("id", Integer, primary_key=True)
     user_id = Column("user_id", Integer, unique=True)  
-    personal_email = Column("personal_email", String)
+
     password = Column("password", String)
-    premium = Column("premium", Boolean, default=False)
+    quantity = Column("quantity", Integer)
     schedule_time = Column("schedule_time", Time)
-    quentity = Column("quantity", Integer)
+    personal_email = Column("personal_email", String)
+    subscription = Column("subscription", Enum(UserSubscription), default=UserSubscription.NOT_SUBSCRIBED)

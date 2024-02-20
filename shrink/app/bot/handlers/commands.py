@@ -13,6 +13,8 @@ from app.bot.utils import get_greeting, get_registration_info, get_profile_conte
       get_not_registered, get_describe_problem_text
 from app.main.config import ADMIN_ID
 
+from app.bot.states import SupportStatesGroup
+
 from keyboard.inline import profile_inline_kb_markup, registration_mailing_kb_markup, сhoose_mailing_type_kb_markup, change_profile_markup
 
 
@@ -40,9 +42,9 @@ async def register_profile_handler(message: Message, state: FSMContext) -> None:
 @inject
 async def profile_content_handler(message: Message, state: FSMContext, user_service: Annotated[UserService, Depends()]) -> None:
     user_id = message.from_user.id
-    email_is_filled = await user_service.user_email_is_filled(user_id)
+    email_and_password_is_filled = await user_service.user_email_and_password_is_set(user_id)
 
-    if email_is_filled:
+    if email_and_password_is_filled:
         await message.edit_text(get_profile_content(),
                                 reply_markup=change_profile_markup,
                                 disable_web_page_preview=True)
@@ -57,10 +59,10 @@ async def cmd_sup(message: Message, state: FSMContext) -> None:
     
     if user_id == ADMIN_ID:
         await message.answer("АДМИН")
-        await state.set_state(Sup.check_admin)
+        await state.set_state(SupportStatesGroup.ADMIN_CHECKING)
 
     else:
-        await state.set_state(Sup.text)
+        await state.set_state(SupportStatesGroup.WAIT_FOR_REPORT)
         await message.answer(get_describe_problem_text())
 
 
@@ -68,9 +70,9 @@ async def cmd_sup(message: Message, state: FSMContext) -> None:
 @commands_router.message(Command("mailing"))
 async def get_mail(message: Message, user_service: Annotated[UserService, Depends()]) -> None:
     user_id = message.from_user.id
-    email_is_filled = await user_service.user_email_is_filled(user_id)
+    email_and_password_is_filled = await user_service.user_email_and_password_is_set(user_id)
 
-    if email_is_filled:
+    if email_and_password_is_filled:
         await message.answer("📮 Выберите тип рассылки ниже:", reply_markup=сhoose_mailing_type_kb_markup)
         
     else:

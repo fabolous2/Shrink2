@@ -1,9 +1,15 @@
+from typing import Annotated
+
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from app.bot.states import RegistrationStatesGroup
+from app.bot.states import RegistrationStatesGroup, AddToEmailStatesGroup, DeletionEmailStatesGroup
 from app.bot.utils import get_registration_info, get_wait_email_addresses_text
+from app.bot.keyboard import inline
+from app.services import EmailService
+
+from dishka.integrations.aiogram import inject, Depends
 
 router = Router()
 
@@ -11,7 +17,7 @@ router = Router()
 
 #!Connection to a Gmail Account
 @router.callback_query(F.data == "email_account_connection")
-async def connect_call(query: CallbackQuery, state: FSMContext):
+async def connect_call(query: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
     await query.message.answer(get_registration_info(),
                                disable_web_page_preview=True)
@@ -21,35 +27,30 @@ async def connect_call(query: CallbackQuery, state: FSMContext):
 
 #!Deleting Email Addresses
 @router.callback_query(F.data == "del_email")
-async def del_email(query: CallbackQuery, state: FSMContext):
+async def del_email(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(f"<b>Напишите почту которую вы хотите удалить из  списка:</b>")
-    await state.set_state(Del_email.email)
+    await state.set_state(DeletionEmailStatesGroup.WAIT_FOR_DEL_EMAIL)
 
 
 #!Adding Email Addresses
 @router.callback_query(F.data == "add_email")
-async def handle_audio(query: CallbackQuery, state: FSMContext):
+async def handle_audio(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_wait_email_addresses_text())
     await state.clear()
-    await state.set_state(Send.send_gmail)
+    await state.set_state(AddToEmailStatesGroup.WAIT_FOR_ADD_EMAIL)
 
 
 #!Editing Email Addresses
 @router.callback_query(F.data == "edit_emails")
-async def get_email_list_call(query: CallbackQuery):
+@inject
+async def get_email_list_call(query: CallbackQuery, email_service: Annotated[EmailService, Depends()]) -> None:
     user_id = query.from_user.id
+    email_list = await email_service.get_user_email_list(user_id)
 
-    if get_email_to_list(user_id):
-        emails = await get_email_to_list(user_id).replace(' ', '').split()
-        emails = "\n".join(emails)
-        await query.message.answer(f"Вот ваш актуальный список почт:\n\n{emails}",
-                                   reply_markup=inline_builder(
-                                       ["Удалить почту(ы)", "Добавить почту(ы)"],
-                                       ["del_email", "add_email"]
-                                   ))
+    if email_list:
+        email_list = "\n".join(email_list)
+        await query.message.answer(f"Вот ваш актуальный список почт:\n\n{email_list}",
+                                   reply_markup=inline.choose_email_action_markup)
+        
     else:
-        await query.message.answer("У вас пока что еще нет почт списке(", reply_markup=inline_builder(
-            ["Добавить почту"],
-            ["add_email"]
-        ))
-
+        await query.message.answer("У вас пока что еще нет почт списке", reply_markup=inline.add_emails_to_list_markup)

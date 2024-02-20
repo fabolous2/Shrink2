@@ -8,3 +8,12 @@ class AddToEmailStatesGroup(StatesGroup):
 class DeletionEmailStatesGroup(StatesGroup):
     WAIT_FOR_DEL_EMAIL = State()
     
+class EmailQuantityStatesGroup(StatesGroup):
+    WAIT_FOR_QUANTITY = State()
+
+class SendingEmailSchecule(StatesGroup):
+    WAIT_FOR_TIME = State()
+
+class DescriptionStatesGroup(StatesGroup):
+    WAIT_FOR_DESC = State()
+    

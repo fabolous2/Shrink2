@@ -4,7 +4,7 @@ from .base import Base
 
 
 class UserEmail(Base):
-    __tablename__ = "email_list"
+    __tablename__ = "user_emails"
 
     id = Column("id", Integer, primary_key=True)
     to = Column("email_address_to", String, unique=True)
@@ -12,4 +12,4 @@ class UserEmail(Base):
     email_subject = Column("email_subject", String)
     email_text = Column("email_text", String)
     
-    user_id = Column("user_id", ForeignKey("user_info.user_id"))
+    user_id = Column("user_id", ForeignKey("users.user_id"))

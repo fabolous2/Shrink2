@@ -8,3 +8,6 @@ class UserEmail:
     email_text: str
     user_id: int
     email_limit: int = field(default=50)
+
+    def __str__(self) -> str:
+        return self.email_text

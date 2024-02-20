@@ -68,5 +68,8 @@ def get_premium_subscription_price() -> str:
 def get_wait_email_addresses_text() -> str:
     return get_text_by_key("wait_to_send_email_addresses")
 
-def get_describe_problem_text() ->str:
+def get_describe_problem_text() -> str:
     return get_text_by_key("describe_the_problem")
+
+def get_pre_quit_text() -> str:
+    return get_text_by_key("pre_quit_text")
