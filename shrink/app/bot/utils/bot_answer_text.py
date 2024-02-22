@@ -68,8 +68,55 @@ def get_premium_subscription_price() -> str:
 def get_wait_email_addresses_text() -> str:
     return get_text_by_key("wait_to_send_email_addresses")
 
-def get_describe_problem_text() -> str:
-    return get_text_by_key("describe_the_problem")
 
 def get_pre_quit_text() -> str:
     return get_text_by_key("pre_quit_text")
+
+
+def get_quantity_text() -> str:
+    return get_text_by_key("quantity")
+
+
+def get_email_subject_text() -> str:
+    return get_text_by_key("email_subject_text")
+
+
+def get_email_scheduler_time() -> str:
+    return get_text_by_key("email_scheduler_time")
+
+
+def get_add_audio_text() -> str:
+    return get_text_by_key("add_audio_text")
+
+
+def get_del_audio_text() -> str:
+    return get_text_by_key("del_audio_text")
+
+
+def get_auto_mailing_choice_text() -> str:
+    return get_text_by_key("auto_mailing_choice_text")
+
+
+def get_auto_mailing_settings_info(settings_info: str) -> str:
+    return get_text_by_key("auto_mailing_settings_info").format(settings_info[0], settings_info[1], settings_info[2], settings_info[3])
+
+
+def get_support_screen() -> str:
+    return get_text_by_key("support_screen_text")
+
+
+def get_user_complaint_content(state_data: str) -> str:
+    return get_text_by_key("user_complain_content").format(state_data=state_data['text'])
+
+
+def get_successfull_complaint_cancel() -> str:
+    return get_text_by_key("successfull_complaint_cancel")
+
+
+def get_new_user_complaint_text(username: str, user_id: int) -> str:
+    return get_text_by_key("new_user_complaint_text").format(username=username, user_id=user_id)
+
+
+def get_successful_complaint_send() -> str:
+    return get_text_by_key("successful_complaint_send")
+

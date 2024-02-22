@@ -14,8 +14,19 @@ from .bot_answer_text import (
     get_basic_subscription_price,
     get_premium_subscription_price,
     get_wait_email_addresses_text,
-    get_describe_problem_text,
-    get_pre_quit_text
+    get_pre_quit_text,
+    get_add_audio_text,
+    get_auto_mailing_choice_text,
+    get_auto_mailing_settings_info,
+    get_del_audio_text,
+    get_email_scheduler_time,
+    get_email_subject_text,
+    get_quantity_text,
+    get_new_user_complaint_text,
+    get_successful_complaint_send,
+    get_successfull_complaint_cancel,
+    get_support_screen,
+    get_user_complaint_content
 )
 from .email import parse_emails
 
@@ -36,8 +47,19 @@ __all__ = [
     "get_basic_subscription_price",
     "get_premium_subscription_price",
     "get_wait_email_addresses_text",
-    "get_describe_problem_text",
     "get_pre_quit_text"
-
     "parse_emails",
+    "get_pre_quit_text",
+    "get_add_audio_text",
+    "get_auto_mailing_choice_text",
+    "get_auto_mailing_settings_info",
+    "get_del_audio_text",
+    "get_email_scheduler_time",
+    "get_email_subject_text",
+    "get_quantity_text",
+    "get_new_user_complaint_text",
+    "get_successful_complaint_send",
+    "get_successfull_complaint_cancel",
+    "get_support_screen",
+    "get_user_complaint_content"
 ]

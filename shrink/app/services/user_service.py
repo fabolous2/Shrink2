@@ -23,4 +23,18 @@ class UserService:
         return await self.user_dal.is_column_filled(user_id, "personal_email", "password")
 
     async def user_subscription(self, user_id: int) -> str:
-        return await self.user_dal.get_one(User.premium)
+        user = await self.user_dal.get_one(user_id=user_id)
+
+        return user.subscription.value
+
+    async def delete_user_by_user_id(self, user_id: int) -> None:
+        await self.user_dal.delete(user_id=user_id)
+
+
+    async def get_user_personal_email(self, user_id: int) -> None:
+        user = await self.user_dal.get_one(user_id=user_id)
+
+        return user.personal_email
+    
+
+    # async def get_settings

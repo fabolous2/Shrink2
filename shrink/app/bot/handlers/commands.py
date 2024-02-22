@@ -10,12 +10,12 @@ from dishka.integrations.aiogram import inject, Depends
 from app.models import User
 from app.services import UserService
 from app.bot.utils import get_greeting, get_registration_info, get_profile_content,\
-      get_not_registered, get_describe_problem_text
+      get_not_registered, get_support_answer
 from app.main.config import ADMIN_ID
 
-from app.bot.states import SupportStatesGroup
+from app.bot.states import SupportStatesGroup, RegistrationStatesGroup
 
-from keyboard.inline import profile_inline_kb_markup, registration_mailing_kb_markup, сhoose_mailing_type_kb_markup, change_profile_markup
+from app.bot.keyboard.inline import profile_inline_kb_markup, registration_mailing_kb_markup, сhoose_mailing_type_kb_markup, change_profile_markup
 
 
 commands_router = Router(name=__name__)
@@ -34,7 +34,7 @@ async def start_command_handler(message: Message, user_service: Annotated[UserSe
 async def register_profile_handler(message: Message, state: FSMContext) -> None:
     await message.answer(get_registration_info(), disable_web_page_preview=True)
     await message.answer("Отправьте свой Gmail")
-    # await state.set_state(Reg.email_from)
+    await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
 
 
 #! Getting Profile Content
@@ -63,11 +63,12 @@ async def cmd_sup(message: Message, state: FSMContext) -> None:
 
     else:
         await state.set_state(SupportStatesGroup.WAIT_FOR_REPORT)
-        await message.answer(get_describe_problem_text())
+        await message.answer(get_support_answer)
 
 
 #! /Mailing
 @commands_router.message(Command("mailing"))
+@inject
 async def get_mail(message: Message, user_service: Annotated[UserService, Depends()]) -> None:
     user_id = message.from_user.id
     email_and_password_is_filled = await user_service.user_email_and_password_is_set(user_id)
