@@ -120,3 +120,18 @@ def get_new_user_complaint_text(username: str, user_id: int) -> str:
 def get_successful_complaint_send() -> str:
     return get_text_by_key("successful_complaint_send")
 
+
+def get_choose_menu_actions() -> str:
+    return get_text_by_key("choose_actions_below_text")
+
+
+def get_successfull_logout() -> str:
+    return get_text_by_key("successfull_logout_text")
+
+
+def get_user_email_addresses(email_list: str) -> str:
+    return get_text_by_key("user_email_addresses_text").format(emails=email_list)     
+
+
+def get_if_wrong_password() -> str:
+    return get_text_by_key("wrong_password_text")

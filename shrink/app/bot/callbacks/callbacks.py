@@ -8,14 +8,7 @@ from aiogram.filters import ExceptionMessageFilter
 from app.bot.utils import (
     get_quit_profile,
     get_profile_content,
-    get_registration_info,
     get_how_the_bot_works,
-    get_reg_start_info,
-    get_without_sub_info,
-    get_basic_sub_info,
-    get_premium_sub_info,
-    get_basic_subscription_price,
-    get_premium_subscription_price,
     get_pre_quit_text,
     get_mailing_registration_required,
     get_wait_email_addresses_text,
@@ -26,33 +19,32 @@ from app.bot.utils import (
     get_auto_mailing_settings_info,
     get_del_audio_text,
     get_email_scheduler_time,
+    get_choose_menu_actions,
+    get_successfull_logout
 )
 from app.bot.keyboard import inline
 from app.services import UserService
 from app.bot.states import (
-    RegistrationStatesGroup,
     AddAudiosStatesGroup,
     DelAudioStatesGroup,
     SelfMailingStatesGroup,
     SendingEmailSchecule,
     EmailQuantityStatesGroup,
-    DescriptionStatesGroup,
 )
 
 from dishka.integrations.aiogram import inject, Depends
 
-router = Router()
+router = Router(name=__name__)
 
 
 #! Main Menu
 @router.callback_query(F.data == "main_menu")
 async def menu_call(query: CallbackQuery, event_chat: Chat, bot: Bot) -> None:
     await bot.edit_message_text(
-        "🔮Выберите действия по кнопкам ниже:",
+        get_choose_menu_actions(),
         chat_id=event_chat.id,
         reply_markup=inline.main_menu,
-        message_id=query.message.message_id,
-        
+        message_id=query.message.message_id,   
     )
 
 
@@ -80,12 +72,14 @@ async def pre_quit_profile(query: CallbackQuery, bot: Bot) -> None:
     )
 
 @router.callback_query(F.data == "quit")
+@inject
 async def quit_profile(
     query: CallbackQuery, bot: Bot, user_service: Annotated[UserService, Depends()]
 ) -> None:
     await user_service.delete_user_by_user_id(query.from_user.id)
+
     await bot.edit_message_text(
-        text="""Вы успешно вышли из аккаунта! 🪫\nЖелаете создать новый?""",
+        text=get_successfull_logout(),
         chat_id=query.from_user.id,
         message_id=query.message.message_id,
         inline_message_id=query.inline_message_id,
@@ -94,30 +88,34 @@ async def quit_profile(
 
 
 #! How The Bot Works
-@router.callback_query(F.data == "how_work")
-async def how_work_call(query: CallbackQuery) -> None:
-    await query.message.edit_text(
-        get_how_the_bot_works(), reply_markup=inline.back_to_main_menu_markup
+@router.callback_query(F.data == "how_works_be_twin")
+async def how_works_info_call(bot: Bot) -> None:
+    await bot.edit_message_text(
+        text=get_how_the_bot_works(),
+        reply_markup=inline.back_to_main_menu_markup
     )
 
 
 #! Getting User Profile Content
 @router.callback_query(F.data == "profile")
+@inject
 async def get_user_profile_info(
-    query: CallbackQuery, user_service: Annotated[UserService, Depends()]
+    query: CallbackQuery,
+    user_service: Annotated[UserService, Depends()],
+    bot: Bot
 ) -> None:
     is_register = await user_service.user_email_and_password_is_set(query.from_user.id)
 
     if is_register:
-        await query.message.edit_text(
-            get_profile_content(),
+        await bot.edit_message_text(
+            text=get_profile_content(),
             reply_markup=inline.change_profile_markup,
             disable_web_page_preview=True,
         )
 
     else:
-        await query.message.edit_text(
-            get_mailing_registration_required(),
+        await bot.edit_message_text(
+            text=get_mailing_registration_required(),
             reply_markup=inline.profile_inline_kb_markup,
         )
 
@@ -146,29 +144,32 @@ async def auto_mailing_call(query: CallbackQuery, bot: Bot) -> None:
 #! Auto-Mailing Settings
 @router.callback_query(F.data == "settings")
 async def settings_call(
-    query: CallbackQuery, user_service: Annotated[UserService, Depends()]
+    query: CallbackQuery,
+    user_service: Annotated[UserService, Depends()],
+    bot: Bot
 ) -> None:
     user_id = query.from_user.id
     info = user_service.get_user_personal_email(user_id)
 
-    await query.message.edit_text(
-        get_auto_mailing_settings_info(), reply_markup=inline.settings_choice_markup
+    await bot.edit_message_text(
+        text=get_auto_mailing_settings_info(),
+        reply_markup=inline.settings_choice_markup
     )
 
 
-@router.callback_query(F.data == "quantity")
+@router.callback_query(F.data == "set_quantity")
 async def quantity_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_quantity_text())
     await state.set_state(EmailQuantityStatesGroup.WAIT_FOR_QUANTITY)
 
 
-@router.callback_query(F.data == "description")
+@router.callback_query(F.data == "set_description")
 async def desc_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_email_subject_text())
     await state.set_state()
 
 
-@router.callback_query(F.data == "mail_time")
+@router.callback_query(F.data == "set_scheduler")
 async def mail_time_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_email_scheduler_time())
     await state.set_state(SendingEmailSchecule.WAIT_FOR_TIME)

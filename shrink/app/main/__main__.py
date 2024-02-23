@@ -1,3 +1,4 @@
+import logging
 import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -9,24 +10,37 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.main.config import BOT_TOKEN
 from app.main.ioc import DatabaseProvider, DALProvider, ServiceProvider
 
-from app.bot.handlers.commands import commands_router
+from app.bot.handlers import commands, mailing, button_answers, pay_system, registration
 from app.bot.callbacks import support, callbacks, email_list_action_calls, subscription_system_calls
 
 
 async def main() -> None:
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s - [%(levelname)s] - %(name)s "
+                               "(%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
+                        )
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dispatcher = Dispatcher(scheduler=AsyncIOScheduler(timezone="Europe/Moscow"))
-    dispatcher.include_router(
-        commands_router,
+    dispatcher.include_routers(
+        commands.commands_router,
+        # mailing.router,
+        # pay_system.router,
+        # registration.router,
         subscription_system_calls.router,
         support.router,
         callbacks.router,
-        email_list_action_calls.router
+        email_list_action_calls.router,
+        button_answers.router
         )
 
     setup_dishka(providers=[DatabaseProvider(), DALProvider(), ServiceProvider()], router=dispatcher)
 
-    dispatcher.run_polling(bot)
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        await dispatcher.start_polling(bot, skip_updates=True)
+
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":

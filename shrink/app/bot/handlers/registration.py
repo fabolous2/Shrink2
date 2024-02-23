@@ -1,35 +1,38 @@
+import re
+
 from aiogram import Router,Bot
 from aiogram.types import Message
-from keyboards import inline, builder
 from aiogram.fsm.context import FSMContext
-from database.database import get_email_from,get_pwd_from,get_premium, update_get_email_from,\
-    update_get_pwd_from
-from utils.states import Reg,Re_reg
-import re
+
+from app.bot.states import RegistrationStatesGroup
+
 router=Router()
 
 
-@router.message(Reg.email_from)
-async def form_email(message: Message, state: FSMContext, bot: Bot):
+@router.message(RegistrationStatesGroup.WAIT_FOR_EMAIL)
+async def form_email(message: Message, state: FSMContext, bot: Bot) -> None:
     email_reg = message.text
     email_pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+
     if not re.match(email_pattern, email_reg):
         await message.answer("Почта введена неверно. Попробуйте еще раз!")
         return
-    await state.update_data(re_reg_email=email_reg)
-    await state.set_state(Re_reg.re_reg_pwd)
-    await update_get_email_from(message.from_user.id, email_reg)
+    
+    await state.update_data(email_from=message.text)
+    await state.set_state(RegistrationStatesGroup.WAIT_FOR_PASSWORD)
+    # await update_get_email_from(message.from_user.id, email_reg)
+
     await bot.send_message(message.from_user.id,
                            text="Отлично! Теперь введите пароль приложения")
 
 
-@router.message(Reg.password)
-async def form_email(message: Message,state: FSMContext):
+@router.message(RegistrationStatesGroup.WAIT_FOR_PASSWORD)
+async def form_email(message: Message, state: FSMContext):
     password=message.text
     user_id=message.from_user.id
+
     if len(password) < 19 or len(password) > 20 or re.search(r'\d', password) or not password.count(" ") == 3:
-        await message.answer("""Что-то пошло не так 😩 
-Проверьте правильность написания почты и пароля приложения и повторите попытку""", reply_markup=inline.profile_reg)
+        await message.answer("""""", reply_markup=inline.profile_reg)
         await update_get_email_from(message.from_user.id, "None")
         await state.clear()
     await state.update_data(password=password)

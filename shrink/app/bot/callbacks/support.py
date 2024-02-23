@@ -17,14 +17,7 @@ from app.bot.keyboard import inline
 from app.main.config import ADMIN_ID
 
 admin_user_id = 0
-
-router = Router()
-
-
-@router.message(Command("support"), F.text.lower() == "поддержка")
-async def support_command_handler(message: Message, state: FSMContext) -> None:
-    await message.answer(get_support_answer())
-    await state.set_state(SupportStatesGroup.WAIT_FOR_REPORT)
+router = Router(name=__name__)
 
 
 @router.message(StateFilter(SupportStatesGroup.WAIT_FOR_REPORT), F.content_type == ContentType.TEXT)

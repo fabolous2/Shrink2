@@ -31,8 +31,6 @@ class UserDAL:
             )
         )
 
-        # делаю так чтобы проверять на существование не только по id
-
         result = await self.session.execute(query)
 
         return result.scalar_one()

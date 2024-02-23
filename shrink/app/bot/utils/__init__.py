@@ -26,7 +26,10 @@ from .bot_answer_text import (
     get_successful_complaint_send,
     get_successfull_complaint_cancel,
     get_support_screen,
-    get_user_complaint_content
+    get_user_complaint_content,
+    get_choose_menu_actions,
+    get_successfull_logout,
+    get_user_email_addresses
 )
 from .email import parse_emails
 
@@ -61,5 +64,8 @@ __all__ = [
     "get_successful_complaint_send",
     "get_successfull_complaint_cancel",
     "get_support_screen",
-    "get_user_complaint_content"
+    "get_user_complaint_content",
+    "get_choose_menu_actions",
+    "get_successfull_logout",
+    "get_user_email_addresses"
 ]

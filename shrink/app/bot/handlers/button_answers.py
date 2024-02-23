@@ -15,7 +15,6 @@ from app.bot.keyboard import inline
 
 router = Router(name=__name__)
 
-
 @router.message(F.text == "‍👨‍💻 Поддержка")
 async def support_button_answer_handler(
     message: Message, state: FSMContext,
