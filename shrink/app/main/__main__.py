@@ -10,7 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.main.config import BOT_TOKEN
 from app.main.ioc import DatabaseProvider, DALProvider, ServiceProvider
 
-from app.bot.handlers import commands, mailing, button_answers, pay_system, registration
+from app.bot.handlers import commands, button_answers, pay_system, registration
 from app.bot.callbacks import support, callbacks, email_list_action_calls, subscription_system_calls
 
 
@@ -23,9 +23,8 @@ async def main() -> None:
     dispatcher = Dispatcher(scheduler=AsyncIOScheduler(timezone="Europe/Moscow"))
     dispatcher.include_routers(
         commands.commands_router,
-        # mailing.router,
-        # pay_system.router,
-        # registration.router,
+        pay_system.router,
+        registration.router,
         subscription_system_calls.router,
         support.router,
         callbacks.router,

@@ -1,6 +1,6 @@
 from .support import SupportStatesGroup
 from .registration import RegistrationStatesGroup
-from .email_actions import AddToEmailStatesGroup, DeletionEmailStatesGroup, EmailQuantityStatesGroup, SendingEmailSchecule, DescriptionStatesGroup
+from .email_actions import AddToEmailStatesGroup, DeletionEmailStatesGroup, EmailQuantityStatesGroup, EmailScheduleStatesGroup, EmailContentStatesGroup
 from .support import SupportStatesGroup
 from .audio_actions import AddAudiosStatesGroup, DelAudioStatesGroup
 from .mailing_actions import SelfMailingStatesGroup
@@ -16,7 +16,7 @@ __all__ = [
     "DelAudioStatesGroup",
     "SelfMailingStatesGroup",
     "EmailQuantityStatesGroup",
-    "SendingEmailSchecule",
-    "DescriptionStatesGroup",
+    "EmailScheduleStatesGroup",
+    "EmailContentStatesGroup",
     "SubscriptionActionsStatesGroup"
 ]

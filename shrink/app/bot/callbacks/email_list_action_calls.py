@@ -15,12 +15,12 @@ from app.services import EmailService
 
 from dishka.integrations.aiogram import inject, Depends
 
-router = Router()
+router = Router() 
 
 
 #!Connection to a Gmail Account
 @router.callback_query(F.data == "email_account_connection")
-async def connect_call(query: CallbackQuery, state: FSMContext) -> None:
+async def account_connection_call(query: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
 
     await query.message.answer(
@@ -32,23 +32,23 @@ async def connect_call(query: CallbackQuery, state: FSMContext) -> None:
 
 #!Deleting Email Addresses
 @router.callback_query(F.data == "del_email")
-async def del_email(query: CallbackQuery, state: FSMContext) -> None:
+async def deletion_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(f"<b>Напишите почту(ы) которую вы хотите удалить из  списка:</b>")
     await state.set_state(DeletionEmailStatesGroup.WAIT_FOR_DEL_EMAIL)
 
 
 #!Adding Email Addresses
 @router.callback_query(F.data == "add_email")
-async def handle_audio(query: CallbackQuery, state: FSMContext) -> None:
+async def addition_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_wait_email_addresses_text())
     await state.clear()
     await state.set_state(AddToEmailStatesGroup.WAIT_FOR_ADD_EMAIL)
-
+    
 
 #!Editing Email Addresses
 @router.callback_query(F.data == "edit_emails")
 @inject
-async def get_email_list_call(query: CallbackQuery, email_service: Annotated[EmailService, Depends()]) -> None:
+async def edition_emails_call(query: CallbackQuery, email_service: Annotated[EmailService, Depends()]) -> None:
     user_id = query.from_user.id
     email_list = await email_service.get_user_email_list(user_id)
 

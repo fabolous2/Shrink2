@@ -41,7 +41,7 @@ auto_mailing_add_email_button = create_inline_button("✉️ Почты", "add_e
 auto_mailing_add_audio_button = create_inline_button("🎹 Биты", "add_audio")
 auto_mailing_settings_button = create_inline_button("⚙️ Настройки", "settings")
 
-set_subject_and_description_button = create_inline_button("Описание+заголовок", "set_description")
+set_subject_and_description_button = create_inline_button("Описание+заголовок", "set_email_content")
 set_email_scheculer_button = create_inline_button("Время отправки", "set_scheduler")
 set_audio_quantity_button = create_inline_button("Кол-во аудио в сообщении", "set_quantity")
 
@@ -75,7 +75,7 @@ subscription_menu_kb_markup = create_inline_keyboard([create_inline_button('💠
 cancel_subscription_kb_markup = create_inline_keyboard([cancel_subscription_button], [more_about_subscription_button], [back_button])
 registration_mailing_kb_markup = create_inline_keyboard([repeat_registration_button], [how_works_be_twin_button])
 have_questions_kb_markup = create_inline_keyboard([have_questions_button])
-сhoose_mailing_type_kb_markup = create_inline_keyboard([extra_mailing_type_button], [auto_mailing_type_button])
+choose_mailing_type_kb_markup = create_inline_keyboard([extra_mailing_type_button], [auto_mailing_type_button])
 quit_profile_kb_markup = create_inline_keyboard([support_button], [pre_log_out_button], [back_to_profile_button])
 logout_for_sure_markup = create_inline_keyboard([log_out_for_sure_button], [back_to_log_out_menu_button])
 back_to_main_menu_markup = create_inline_keyboard([back_to_main_menu_button])
@@ -102,3 +102,4 @@ complaint_decision_markup = create_inline_keyboard([confirm_compaints_sending_bu
 complaint_sending_without_screen_markup = create_inline_keyboard([complaint_sending_without_screen_button])
 premium_subscription_markup = create_inline_keyboard([premium_subscription_choice_button])
 basic_subscription_markup = create_inline_keyboard([basic_subscription_choice_button])
+cancel_purchase_subscription_markup = create_inline_keyboard([create_inline_button('❌Отменить', 'cancel')])

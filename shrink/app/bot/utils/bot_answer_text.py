@@ -1,4 +1,5 @@
 import json
+from app.models import EmailSettings
 
 
 def get_text_by_key(key: str) -> str:
@@ -11,13 +12,13 @@ def get_text_by_key(key: str) -> str:
 def get_greeting(first_name: str) -> str:
     return get_text_by_key("greeting").format(first_name=first_name)
 
-
+ 
 def get_registration_info() -> str:
     return get_text_by_key("registration_info")
 
 
-def get_profile_content(first_name: str, email: str, premium) -> str:
-    return get_text_by_key("profile_content")
+def get_profile_content(first_name: str, email: str, subscription: str) -> str:
+    return get_text_by_key("profile_content").format(first_name=first_name, email=email, premium=subscription)
     
 
 def get_support_answer() -> str:
@@ -39,10 +40,6 @@ def get_quit_profile() -> str:
 
 def get_how_the_bot_works() -> str:
     return get_text_by_key("how_the_bot_works")
-
-
-def get_reg_start_info() -> str:
-    return get_text_by_key("registration_start_info")
 
 
 def get_without_sub_info() -> str:
@@ -74,7 +71,7 @@ def get_pre_quit_text() -> str:
 
 
 def get_quantity_text() -> str:
-    return get_text_by_key("quantity")
+    return get_text_by_key("quantity_text")
 
 
 def get_email_subject_text() -> str:
@@ -97,16 +94,21 @@ def get_auto_mailing_choice_text() -> str:
     return get_text_by_key("auto_mailing_choice_text")
 
 
-def get_auto_mailing_settings_info(settings_info: str) -> str:
-    return get_text_by_key("auto_mailing_settings_info").format(settings_info[0], settings_info[1], settings_info[2], settings_info[3])
+def get_auto_mailing_settings_info(settings_info: EmailSettings) -> str:
+    return get_text_by_key("auto_mailing_settings_info").format(
+        settings_info.email_subject,
+        settings_info.email_text,
+        settings_info.schedule_time,
+        settings_info.quantity
+    )
 
-
+ 
 def get_support_screen() -> str:
     return get_text_by_key("support_screen_text")
 
 
 def get_user_complaint_content(state_data: str) -> str:
-    return get_text_by_key("user_complain_content").format(state_data=state_data['text'])
+    return get_text_by_key("user_complain_content").format(state_data=state_data)
 
 
 def get_successfull_complaint_cancel() -> str:
@@ -135,3 +137,7 @@ def get_user_email_addresses(email_list: str) -> str:
 
 def get_if_wrong_password() -> str:
     return get_text_by_key("wrong_password_text")
+
+
+def get_choose_type_of_mailing() -> str:
+    return get_text_by_key("choose_type_of_mailing")

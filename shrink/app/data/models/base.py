@@ -4,7 +4,3 @@ from sqlalchemy.orm import DeclarativeBase
 
 class Base(DeclarativeBase):
     pass
-
-# все, этого достаточно
-
-# теперь создаем модель пользователя

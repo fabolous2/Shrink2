@@ -1,3 +1,5 @@
+import re
+from datetime import datetime
 from typing import Annotated
 
 from aiogram import Router, F
@@ -7,8 +9,8 @@ from aiogram.fsm.context import FSMContext
 
 from dishka.integrations.aiogram import inject, Depends
 
-from app.models import User
-from app.services import UserService
+from app.models import User, EmailSettings as Settings
+from app.services import UserService, SettingsService, EmailService
 from app.bot.utils import (
     get_greeting,
     get_registration_info,
@@ -18,7 +20,14 @@ from app.bot.utils import (
     )
 from app.main.config import ADMIN_ID
 
-from app.bot.states import SupportStatesGroup, RegistrationStatesGroup
+from app.bot.states import (
+    SupportStatesGroup,
+    RegistrationStatesGroup,
+    EmailQuantityStatesGroup,
+    EmailScheduleStatesGroup,
+    EmailContentStatesGroup,
+    AddToEmailStatesGroup
+)
 
 from app.bot.keyboard import inline
 from app.bot.keyboard import reply
@@ -29,8 +38,14 @@ commands_router = Router(name=__name__)
 #! /Start
 @commands_router.message(CommandStart())
 @inject
-async def start_command_handler(message: Message, user_service: Annotated[UserService, Depends()]) -> None:
+async def start_command_handler(
+    message: Message,
+    user_service: Annotated[UserService, Depends()],
+    settings_service: Annotated[SettingsService, Depends()]
+) -> None:
     await user_service.save_user(User(user_id=message.from_user.id))
+    await settings_service.save_user_settings(Settings(user_id=message.from_user.id))
+
     await message.answer(get_greeting(message.from_user.username),
                          reply_markup=reply.main_menu_keyboard_markup,
                          disable_web_page_preview=True)
@@ -49,14 +64,25 @@ async def register_profile_handler(message: Message, state: FSMContext) -> None:
 #! Getting Profile Content
 @commands_router.message(Command("profile"))
 @inject
-async def profile_content_handler(message: Message, state: FSMContext, user_service: Annotated[UserService, Depends()]) -> None:
+async def profile_content_handler(
+    message: Message,
+    state: FSMContext,
+    user_service: Annotated[UserService, Depends()]
+) -> None:
     user_id = message.from_user.id
-    email_and_password_is_filled = await user_service.user_email_and_password_is_set(user_id)
+    is_registered = await user_service.user_email_and_password_is_set(user_id)
+    email = await user_service.get_user_personal_email(user_id=user_id)
+    subscription = await user_service.user_subscription(user_id)
 
-    if email_and_password_is_filled:
-        await message.edit_text(get_profile_content(),
-                                reply_markup=inline.change_profile_markup,
-                                disable_web_page_preview=True)
+    if is_registered:
+        await message.answer(get_profile_content(
+            first_name=message.from_user.first_name,
+            email=email,
+            subscription=subscription
+),
+        reply_markup=inline.change_profile_markup,
+        disable_web_page_preview=True)
+
     else:
         await message.answer(get_not_registered(),
                              reply_markup=inline.profile_inline_kb_markup)
@@ -64,7 +90,7 @@ async def profile_content_handler(message: Message, state: FSMContext, user_serv
 
 #! /Support
 @commands_router.message(Command("support"),  F.text.lower() == "поддержка")
-async def cmd_sup(message: Message, state: FSMContext) -> None:
+async def support_handler(message: Message, state: FSMContext) -> None:
     user_id = message.from_user.id
     
     if user_id == ADMIN_ID:
@@ -79,7 +105,10 @@ async def cmd_sup(message: Message, state: FSMContext) -> None:
 #! /Mailing
 @commands_router.message(Command("mailing"))
 @inject
-async def get_mail(message: Message, user_service: Annotated[UserService, Depends()]) -> None:
+async def mailing_type_handler(
+    message: Message,
+    user_service: Annotated[UserService, Depends()]
+) -> None:
     user_id = message.from_user.id
     email_and_password_is_filled = await user_service.user_email_and_password_is_set(user_id)
 
@@ -91,3 +120,106 @@ async def get_mail(message: Message, user_service: Annotated[UserService, Depend
         await message.answer(get_not_registered(),
                              reply_markup=inline.registration_mailing_kb_markup)
         
+
+@commands_router.message(EmailContentStatesGroup.WAIT_FOR_SUBJECT)
+async def set_subject(message: Message, state: FSMContext) -> None:
+    await state.update_data(header=message.text)
+    await message.answer("Отлично! Теперь придумайте описание к вашему письму")
+    await state.set_state(EmailContentStatesGroup.WAIT_FOR_DESCRIPTION)
+
+
+@commands_router.message(EmailContentStatesGroup.WAIT_FOR_DESCRIPTION)
+@inject
+async def set_description(
+    message: Message,
+    state: FSMContext,
+    settings_service: Annotated[SettingsService, Depends()]
+) -> None:
+    await state.update_data(description=message.text)
+    data = await state.get_data()
+    await state.clear()
+
+    try:
+        await settings_service.update_settings(
+            user_id=message.from_user.id,
+            email_subject=data["header"],
+            email_text=data["description"]
+        )
+        await message.answer("Вы успешно обновили своё письмо")
+
+    except Exception:
+        await message.answer("Что то пошло не так,попробуйте обратиться в поддержку - /support")
+    
+
+@commands_router.message(EmailQuantityStatesGroup.WAIT_FOR_QUANTITY)
+@inject
+async def set_quantity(
+    message: Message,
+    state: FSMContext,
+    settings_service: Annotated[SettingsService, Depends()]
+) -> None:
+    quantity = message.text
+    user_id = message.from_user.id
+
+    try:
+        int(quantity)
+
+        await settings_service.update_settings(
+            user_id=user_id,
+            quantity=quantity
+        )
+        await message.answer("Вы успешно установили значение!")
+        await state.clear()
+        
+    except Exception:
+        await message.answer("Отправьте число!")
+
+
+@commands_router.message(EmailScheduleStatesGroup.WAIT_FOR_TIME)
+@inject
+async def get_mail_time(
+    message: Message,
+    state: FSMContext,
+    settings_service: Annotated[SettingsService, Depends()]
+) -> None:
+    pattern = r'^\d+\d[:]\d+\d$'
+
+    if not re.match(pattern, message.text):
+        await message.answer("Время введено неверно. Попробуйте еще раз!")
+
+    try:
+        # Convert the message.text string to a time object
+        schedule_time = datetime.strptime(message.text, '%H:%M').time()
+
+        # Update the settings with the converted time object
+        await settings_service.update_settings(
+            user_id=message.from_user.id,
+            schedule_time=schedule_time
+        )
+
+        await message.answer("Вы успешно установили время отправки!")
+        await state.clear()
+
+    except ValueError:
+        await message.answer("Ошибка при конвертации времени. Попробуйте еще раз!")
+
+
+@commands_router.message(AddToEmailStatesGroup.WAIT_FOR_ADD_EMAIL)
+@inject
+async def handle_audio(
+    message: Message,
+    state: FSMContext,
+    email_service: Annotated[EmailService, Depends()]
+) -> None:
+    email_to = message.text.replace(' ', '')
+    user_id = message.from_user.id
+
+    email_to_list = []
+    for email in email_to:
+        email_tuple = (user_id, email)
+        email_to_list.append(email_tuple)
+
+    await email_service.update_email_list(user_emails=email_to)
+    await message.answer("Отлично, ты добавил новые почты!\n Чтобы посмотреть актуальный список почт"
+                         " - воспользуйтесь \n/email_list", reply_markup=reply.start_markup)
+    await state.clear()

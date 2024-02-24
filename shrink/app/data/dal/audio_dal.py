@@ -24,11 +24,11 @@ class UserAudioDAL:
         db_audio = results.scalar_one()
 
         return UserAudio(
-            to=db_audio.to, 
-            email_subject=db_audio.email_subject, 
-            email_limit=db_audio.email_limit, 
-            email_text=db_audio.email_text, 
-            user_id=db_audio.user_id,
+            file_id=db_audio.file_id,
+            name=db_audio.name,
+            size=db_audio.size,
+            is_sent=db_audio.is_sent,
+            user_id=db_audio.user_id
         )
 
     async def get_all(self, **kwargs) -> list[UserAudio]:
@@ -40,10 +40,10 @@ class UserAudioDAL:
 
         return [
             UserAudio(
-                to=db_audio.to, 
-                email_subject=db_audio.email_subject, 
-                email_limit=db_audio.email_limit, 
-                email_text=db_audio.email_text, 
-                user_id=db_audio.user_id,
+                file_id=db_audio.file_id,
+                name=db_audio.name,
+                size=db_audio.size,
+                is_sent=db_audio.is_sent,
+                user_id=db_audio.user_id
             ) for db_audio in db_audios
         ]

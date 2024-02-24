@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, async_sessi
 
 from app.main.config import DATABASE_URL
 
-from app.services import UserService
-from app.data.dal import UserDAL, UserEmailDAL, UserAudioDAL
+from app.services import UserService, SettingsService, EmailService
+from app.data.dal import UserDAL, UserEmailDAL, UserAudioDAL, EmailSettingsDAL
 
 
 class DatabaseProvider(Provider):
@@ -28,7 +28,10 @@ class DALProvider(Provider):
     user_dal = provide(UserDAL, scope=Scope.REQUEST, provides=UserDAL)
     email_dal = provide(UserEmailDAL, scope=Scope.REQUEST, provides=UserEmailDAL)
     audio_dal = provide(UserAudioDAL, scope=Scope.REQUEST, provides=UserAudioDAL)
+    settings_dal = provide(EmailSettingsDAL, scope=Scope.REQUEST, provides=EmailSettingsDAL)
 
 
 class ServiceProvider(Provider):
     user_service = provide(UserService, scope=Scope.REQUEST, provides=UserService)
+    settings_service = provide(SettingsService, scope=Scope.REQUEST, provides=SettingsService)
+    email_service = provide(EmailService, scope=Scope.REQUEST, provides=EmailService)

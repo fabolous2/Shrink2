@@ -9,7 +9,7 @@ from dishka.integrations.aiogram import inject, Depends
 from app.services import UserService
 
 from app.bot.states import SupportStatesGroup
-from app.bot.utils import get_support_answer, get_mailing_registration_required
+from app.bot.utils import get_support_answer, get_mailing_registration_required, get_choose_type_of_mailing
 
 from app.bot.keyboard import inline
 
@@ -26,16 +26,17 @@ async def support_button_answer_handler(
 @router.message(F.text == "📨 Рассылка")
 @inject
 async def mailing_button_answer_handler(message: Message, state: FSMContext, user_service: Annotated[UserService, Depends()]) -> None:
-    email_and_password_is_set = await user_service.user_email_and_password_is_set(message.from_user.id)
-
-    if not email_and_password_is_set:
+    registered = await user_service.user_email_and_password_is_set(message.from_user.id)
+    
+    if not registered:
         await message.answer(
-            get_mailing_registration_required(), 
+            text=get_mailing_registration_required(), 
             reply_markup=inline.registration_mailing_kb_markup,
         )
 
     else:
-        await message.answer()
+        await message.answer(get_choose_type_of_mailing(),
+                             reply_markup=inline.choose_mailing_type_kb_markup)
 
 
 @router.message(F.text == "🎡 Главное меню")

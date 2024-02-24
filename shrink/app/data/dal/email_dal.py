@@ -11,6 +11,7 @@ class UserEmailDAL:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
     
+
     async def exists(self, **kwargs) -> bool:
         query = select(exists().where(
             *(getattr(UserEmailDB, key) == value for key, value in kwargs.items() if hasattr(UserEmailDB, key))
@@ -22,11 +23,13 @@ class UserEmailDAL:
 
         return result.scalar_one()
 
+
     async def add(self, user_email: UserEmail) -> None:
         query = insert(UserEmailDB).values(**asdict(user_email))
         
         await self.session.execute(query)
         await self.session.commit()
+
 
     async def get_one(self, **kwargs) -> UserEmail:
         exists = await self.exists(**kwargs)
@@ -42,11 +45,9 @@ class UserEmailDAL:
 
         return UserEmail(
             to=db_email.to, 
-            email_subject=db_email.email_subject, 
-            email_limit=db_email.email_limit, 
-            email_text=db_email.email_text, 
             user_id=db_email.user_id,
         )
+
 
     async def get_all(self, **kwargs) -> list[UserEmail]:
         exists = await self.exists(**kwargs)
@@ -63,9 +64,6 @@ class UserEmailDAL:
         return [
             UserEmail(
                 to=db_email.to, 
-                email_subject=db_email.email_subject, 
-                email_limit=db_email.email_limit, 
-                email_text=db_email.email_text, 
                 user_id=db_email.user_id,
             ) for db_email in db_emails
         ]

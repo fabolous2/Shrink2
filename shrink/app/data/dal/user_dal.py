@@ -11,10 +11,12 @@ class UserDAL:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+
     async def add(self, user: User) -> None:
         query = insert(UserDB).values(**asdict(user))
         await self.session.execute(query)
         await self.session.commit()
+
 
     async def update(self, user_id: int, **kwargs) -> None:
         query = update(UserDB).where(UserDB.user_id == user_id).values(**kwargs)
@@ -22,18 +24,22 @@ class UserDAL:
         await self.session.execute(query)
         await self.session.commit()
 
+
     async def exists(self, **kwargs) -> bool:
         query = select(
             exists().where(
-                getattr(UserDB, key) == value
-                for key, value in kwargs.items()
-                if hasattr(UserDB, key)
+                *(
+                    getattr(UserDB, key) == value
+                    for key, value in kwargs.items()
+                    if hasattr(UserDB, key)
+                )
             )
         )
 
         result = await self.session.execute(query)
 
         return result.scalar_one()
+
 
     async def is_column_filled(self, user_id: int, *column_names: str) -> bool:
         # Проверка существования пользователя
@@ -43,15 +49,18 @@ class UserDAL:
             return False  # Пользователь не существует, колонка не заполнена
 
         query = select(
-            getattr(UserDB, column_name)
-            for column_name in column_names
-            if hasattr(UserDB, column_name)
+            *(
+                getattr(UserDB, column_name)
+                for column_name in column_names
+                if hasattr(UserDB, column_name)
+            )
         ).where(UserDB.user_id == user_id)
 
         result = await self.session.execute(query)
         column_value = result.scalar_one_or_none()
 
         return column_value is not None
+
 
     async def _get(self, **kwargs) -> Result[tuple[UserDB]] | None:
         exists = await self.exists(**kwargs)
@@ -65,6 +74,7 @@ class UserDAL:
 
         return res
 
+
     async def get_one(self, **kwargs) -> User | None:
         res = await self._get(**kwargs)
 
@@ -75,10 +85,9 @@ class UserDAL:
                 user_id=db_user.user_id,
                 personal_email=db_user.personal_email,
                 password=db_user.password,
-                premium=db_user.premium,
-                schedule_time=db_user.schedule_time,
-                quantity=db_user.quantity,
+                subscription=db_user.subscription
             )
+
 
     async def get_all(self, **kwargs) -> list[User] | None:
         res = await self._get(**kwargs)
@@ -90,12 +99,11 @@ class UserDAL:
                     user_id=db_user.user_id,
                     personal_email=db_user.personal_email,
                     password=db_user.password,
-                    premium=db_user.premium,
-                    schedule_time=db_user.schedule_time,
-                    quantity=db_user.quantity,
+                    subscription=db_user.subscription
                 )
                 for db_user in db_users
             ]
+
 
     async def delete(self, **kwargs) -> None:
         query = delete(UserDB).where(

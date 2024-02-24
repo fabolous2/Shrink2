@@ -8,7 +8,6 @@ from .bot_answer_text import (
     get_quit_profile,
     get_how_the_bot_works,
     get_without_sub_info,
-    get_reg_start_info,
     get_basic_sub_info,
     get_premium_sub_info,
     get_basic_subscription_price,
@@ -29,7 +28,9 @@ from .bot_answer_text import (
     get_user_complaint_content,
     get_choose_menu_actions,
     get_successfull_logout,
-    get_user_email_addresses
+    get_user_email_addresses,
+    get_if_wrong_password,
+    get_choose_type_of_mailing
 )
 from .email import parse_emails
 
@@ -44,7 +45,6 @@ __all__ = [
     "get_quit_profile",
     "get_how_the_bot_works",
     "get_without_sub_info",
-    "get_reg_start_info",
     "get_basic_sub_info",
     "get_premium_sub_info",
     "get_basic_subscription_price",
@@ -67,5 +67,7 @@ __all__ = [
     "get_user_complaint_content",
     "get_choose_menu_actions",
     "get_successfull_logout",
-    "get_user_email_addresses"
+    "get_user_email_addresses",
+    "get_if_wrong_password",
+    "get_choose_type_of_mailing"
 ]

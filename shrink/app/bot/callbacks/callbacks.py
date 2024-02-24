@@ -20,16 +20,19 @@ from app.bot.utils import (
     get_del_audio_text,
     get_email_scheduler_time,
     get_choose_menu_actions,
-    get_successfull_logout
+    get_successfull_logout,
+    get_registration_info
 )
 from app.bot.keyboard import inline
-from app.services import UserService
+from app.services import UserService, SettingsService
 from app.bot.states import (
     AddAudiosStatesGroup,
     DelAudioStatesGroup,
     SelfMailingStatesGroup,
-    SendingEmailSchecule,
     EmailQuantityStatesGroup,
+    RegistrationStatesGroup,
+    EmailContentStatesGroup,
+    EmailScheduleStatesGroup
 )
 
 from dishka.integrations.aiogram import inject, Depends
@@ -43,7 +46,7 @@ async def menu_call(query: CallbackQuery, event_chat: Chat, bot: Bot) -> None:
     await bot.edit_message_text(
         get_choose_menu_actions(),
         chat_id=event_chat.id,
-        reply_markup=inline.main_menu,
+        reply_markup=inline.main_menu_inline_kb_markup,
         message_id=query.message.message_id,   
     )
 
@@ -71,6 +74,7 @@ async def pre_quit_profile(query: CallbackQuery, bot: Bot) -> None:
         reply_markup=inline.log_out_for_sure_button,
     )
 
+
 @router.callback_query(F.data == "quit")
 @inject
 async def quit_profile(
@@ -89,8 +93,8 @@ async def quit_profile(
 
 #! How The Bot Works
 @router.callback_query(F.data == "how_works_be_twin")
-async def how_works_info_call(bot: Bot) -> None:
-    await bot.edit_message_text(
+async def how_works_info_call(query: CallbackQuery, bot: Bot) -> None:
+    await query.message.edit_text(
         text=get_how_the_bot_works(),
         reply_markup=inline.back_to_main_menu_markup
     )
@@ -104,11 +108,20 @@ async def get_user_profile_info(
     user_service: Annotated[UserService, Depends()],
     bot: Bot
 ) -> None:
-    is_register = await user_service.user_email_and_password_is_set(query.from_user.id)
+    user_id = query.from_user.id
+    is_register = await user_service.user_email_and_password_is_set(user_id)
+    user_email = await user_service.get_user_personal_email(user_id)
+    user_subscription = await user_service.user_subscription(user_id)
 
     if is_register:
         await bot.edit_message_text(
-            text=get_profile_content(),
+            chat_id=query.message.chat.id,
+            message_id=query.message.message_id,
+            text=get_profile_content(
+                query.from_user.username,
+                user_email,
+                user_subscription
+            ),
             reply_markup=inline.change_profile_markup,
             disable_web_page_preview=True,
         )
@@ -131,10 +144,10 @@ async def cancel_call(query: CallbackQuery, bot: Bot) -> None:
 
 #! Auto-Mailing call
 @router.callback_query(F.data == "auto_mailing")
-async def auto_mailing_call(query: CallbackQuery, bot: Bot) -> None:
+async def auto_mailing_call(query: CallbackQuery, event_chat: Chat, bot: Bot) -> None:
     await bot.edit_message_text(
         text=get_auto_mailing_choice_text(),
-        chat_id=query.chat_instance,
+        chat_id=event_chat.id,
         message_id=query.message.message_id,
         inline_message_id=query.inline_message_id,
         reply_markup=inline.choose_auto_mailing_actions_markup,
@@ -143,16 +156,19 @@ async def auto_mailing_call(query: CallbackQuery, bot: Bot) -> None:
 
 #! Auto-Mailing Settings
 @router.callback_query(F.data == "settings")
+@inject
 async def settings_call(
     query: CallbackQuery,
-    user_service: Annotated[UserService, Depends()],
-    bot: Bot
+    bot: Bot,
+    settings_service: Annotated[SettingsService, Depends()]
 ) -> None:
     user_id = query.from_user.id
-    info = user_service.get_user_personal_email(user_id)
+    settings_info = await settings_service.get_user_settings_content(user_id)
 
     await bot.edit_message_text(
-        text=get_auto_mailing_settings_info(),
+        text=get_auto_mailing_settings_info(settings_info),
+        chat_id=query.message.chat.id,
+        message_id=query.message.message_id,
         reply_markup=inline.settings_choice_markup
     )
 
@@ -163,16 +179,16 @@ async def quantity_call(query: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(EmailQuantityStatesGroup.WAIT_FOR_QUANTITY)
 
 
-@router.callback_query(F.data == "set_description")
+@router.callback_query(F.data == "set_email_content")
 async def desc_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_email_subject_text())
-    await state.set_state()
+    await state.set_state(EmailContentStatesGroup.WAIT_FOR_SUBJECT)
 
 
 @router.callback_query(F.data == "set_scheduler")
 async def mail_time_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_email_scheduler_time())
-    await state.set_state(SendingEmailSchecule.WAIT_FOR_TIME)
+    await state.set_state(EmailScheduleStatesGroup.WAIT_FOR_TIME)
 
 
 #! Self-Mailing
@@ -193,3 +209,21 @@ async def add_audio_call(query: CallbackQuery, state: FSMContext) -> None:
 async def del_audio_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_del_audio_text())
     await state.set_state(DelAudioStatesGroup.WAIT_FOR_AUDIOS_TO_DEL)
+
+
+#EMAIL CONNECTION
+@router.callback_query(F.data == "registration")
+async def connect_call(query: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
+    await query.message.answer(text=get_registration_info(),
+                               disable_web_page_preview=True)
+    await query.message.answer("Отправь свой Gmail")
+
+
+#RE-REGISTRATION EMAIL
+@router.callback_query(F.data == "repeat_registration")
+async def re_reg_call(query: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
+    await query.message.answer(text=get_registration_info(),
+                               disable_web_page_preview=True)
+    await query.message.answer("Отправь свой Gmail")
