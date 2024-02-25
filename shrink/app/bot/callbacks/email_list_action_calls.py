@@ -31,14 +31,14 @@ async def account_connection_call(query: CallbackQuery, state: FSMContext) -> No
 
 
 #!Deleting Email Addresses
-@router.callback_query(F.data == "del_email")
+@router.callback_query(F.data == "delete_emails")
 async def deletion_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(f"<b>Напишите почту(ы) которую вы хотите удалить из  списка:</b>")
     await state.set_state(DeletionEmailStatesGroup.WAIT_FOR_DEL_EMAIL)
 
 
 #!Adding Email Addresses
-@router.callback_query(F.data == "add_email")
+@router.callback_query(F.data == "add_emails")
 async def addition_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_wait_email_addresses_text())
     await state.clear()

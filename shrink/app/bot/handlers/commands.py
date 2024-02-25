@@ -9,14 +9,15 @@ from aiogram.fsm.context import FSMContext
 
 from dishka.integrations.aiogram import inject, Depends
 
-from app.models import User, EmailSettings as Settings
+from app.models import User, EmailSettings as Settings, UserEmail
 from app.services import UserService, SettingsService, EmailService
 from app.bot.utils import (
     get_greeting,
     get_registration_info,
     get_profile_content,
     get_not_registered,
-    get_support_answer
+    get_support_answer,
+    get_user_email_addresses
     )
 from app.main.config import ADMIN_ID
 
@@ -26,7 +27,8 @@ from app.bot.states import (
     EmailQuantityStatesGroup,
     EmailScheduleStatesGroup,
     EmailContentStatesGroup,
-    AddToEmailStatesGroup
+    AddToEmailStatesGroup,
+    DeletionEmailStatesGroup
 )
 
 from app.bot.keyboard import inline
@@ -204,6 +206,7 @@ async def get_mail_time(
         await message.answer("Ошибка при конвертации времени. Попробуйте еще раз!")
 
 
+# Emails Additing
 @commands_router.message(AddToEmailStatesGroup.WAIT_FOR_ADD_EMAIL)
 @inject
 async def handle_audio(
@@ -211,15 +214,72 @@ async def handle_audio(
     state: FSMContext,
     email_service: Annotated[EmailService, Depends()]
 ) -> None:
-    email_to = message.text.replace(' ', '')
+    await state.clear()
+    email_to = message.text.replace(' ', '').split(',')
     user_id = message.from_user.id
 
     email_to_list = []
     for email in email_to:
-        email_tuple = (user_id, email)
-        email_to_list.append(email_tuple)
+        email_dict = {
+            "user_id": user_id,
+            "to": email
+        }
+        email_to_list.append(email_dict)
 
-    await email_service.update_email_list(user_emails=email_to)
+    await email_service.update_email_list(email_to_list)
     await message.answer("Отлично, ты добавил новые почты!\n Чтобы посмотреть актуальный список почт"
-                         " - воспользуйтесь \n/email_list", reply_markup=reply.start_markup)
+                         " - воспользуйтесь \n/email_list")
+
+
+
+@commands_router.message(Command("email_list"))
+@inject
+async def get_email_list(
+    message: Message,
+    email_service: Annotated[EmailService, Depends()]
+) -> None:
+    user_id = message.from_user.id
+    email_list = await email_service.get_user_email_list(user_id=user_id)
+    print(email_list)
+    if email_list:
+        await message.answer(get_user_email_addresses(email_list=email_list),
+                             reply_markup=inline.choose_email_action_markup)
+
+    else:
+        await message.answer("У вас пока что еще нет почт списке(",
+                             reply_markup=inline.add_emails_to_list_markup)
+
+
+#DEL EMAIL from EMAIL LIST
+@commands_router.message(Command("del_emails"))
+async def del_email(message: Message, state: FSMContext):
+    await message.answer(f"<b>Напишите почту(ы) которую вы хотите удалить из  списка:</b>")
+    await state.set_state(DeletionEmailStatesGroup.WAIT_FOR_DEL_EMAIL)
+
+
+#TODO: удаление почт
+@commands_router.message(DeletionEmailStatesGroup.WAIT_FOR_DEL_EMAIL)
+@inject
+async def email_del(
+    message: Message,
+    state: FSMContext,
+    email_service: Annotated[EmailService, Depends()]
+) -> None:
+    emails_to_del = message.text.replace(' ', '').split(',')
+    user_id = message.from_user.id
+
+    emails_to_del_list = [
+        {"user_id": user_id, "to": email}
+        for email in emails_to_del
+    ]
+
+    await email_service.delete_emails(emails_to_del_list)
+
+    try:
+        await message.answer("Отлично, ты успешно удалил почты!\n Чтобы посмотреть актуальный список почт"
+                             " - воспользуйтесь \n/email_list")
+
+    except Exception:
+        await message.answer("Упс... Что-то пошло не так. Возможно такой почты не существует в вашем списке или произошла ошибка")
+
     await state.clear()

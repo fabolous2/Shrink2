@@ -2,7 +2,7 @@ from typing import Annotated
 
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, Chat
+from aiogram.types import CallbackQuery, Chat
 from aiogram.filters import ExceptionMessageFilter
 
 from app.bot.utils import (
@@ -196,19 +196,6 @@ async def mail_time_call(query: CallbackQuery, state: FSMContext) -> None:
 async def self_mailing_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_wait_email_addresses_text())
     await state.set_state(SelfMailingStatesGroup.WAIT_FOR_EMAILS)
-
-
-#! Audio-list Actions
-@router.callback_query(F.data == "add_audio")
-async def add_audio_call(query: CallbackQuery, state: FSMContext) -> None:
-    await query.message.answer(get_add_audio_text())
-    await state.set_state(AddAudiosStatesGroup.WAIT_FOR_AUDIOS)
-
-
-@router.callback_query(F.data == "del_audio")
-async def del_audio_call(query: CallbackQuery, state: FSMContext) -> None:
-    await query.message.answer(get_del_audio_text())
-    await state.set_state(DelAudioStatesGroup.WAIT_FOR_AUDIOS_TO_DEL)
 
 
 #EMAIL CONNECTION

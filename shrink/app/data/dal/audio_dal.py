@@ -10,11 +10,12 @@ class UserAudioDAL:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def add(self, user_audio: UserAudio) -> None:
-        query = insert(UserAudioDB).values(**asdict(user_audio))
-        
+
+    async def add(self, user_audio: list) -> None:
+        query = insert(UserAudioDB).values(user_audio)
         await self.session.execute(query)
         await self.session.commit()
+
 
     async def get_one(self, **kwargs) -> UserAudio:
         query = select(UserAudioDB).filter_by(**kwargs)
@@ -31,12 +32,14 @@ class UserAudioDAL:
             user_id=db_audio.user_id
         )
 
+
     async def get_all(self, **kwargs) -> list[UserAudio]:
         query = select(UserAudioDB).filter_by(**kwargs)
 
         results = await self.session.execute(query)
 
         db_audios = results.scalars().all()
+
 
         return [
             UserAudio(

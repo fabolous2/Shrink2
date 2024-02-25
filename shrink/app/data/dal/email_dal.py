@@ -1,6 +1,6 @@
 from dataclasses import asdict
 
-from sqlalchemy import insert, select, exists
+from sqlalchemy import insert, select, exists, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserEmail
@@ -24,9 +24,8 @@ class UserEmailDAL:
         return result.scalar_one()
 
 
-    async def add(self, user_email: UserEmail) -> None:
-        query = insert(UserEmailDB).values(**asdict(user_email))
-        
+    async def add(self, user_emails: list) -> None:
+        query = insert(UserEmailDB).values(user_emails)
         await self.session.execute(query)
         await self.session.commit()
 
@@ -67,3 +66,16 @@ class UserEmailDAL:
                 user_id=db_email.user_id,
             ) for db_email in db_emails
         ]
+
+
+    async def delete(self, **kwargs) -> None:
+        query = delete(UserEmailDB).where(
+            {
+                getattr(UserEmailDB, key) == value
+                for key, value in kwargs.items()
+                if hasattr(UserEmailDB, key)
+            }
+        )
+        for i in query:
+            await self.session.execute(i)
+        await self.session.commit()

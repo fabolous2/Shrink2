@@ -132,7 +132,7 @@ def get_successfull_logout() -> str:
 
 
 def get_user_email_addresses(email_list: str) -> str:
-    return get_text_by_key("user_email_addresses_text").format(emails=email_list)     
+    return get_text_by_key("user_email_addresses_text").format(email_list)     
 
 
 def get_if_wrong_password() -> str:

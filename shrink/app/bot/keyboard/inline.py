@@ -34,10 +34,7 @@ log_out_for_sure_button = create_inline_button("✅ Выйти", "quit")
 back_to_main_menu_button = create_inline_button("⬅Back", "main_menu")
 change_user_profile_button = create_inline_button("🧬 Сменить профиль", "quit_profile")
 
-deletion_email_button = create_inline_button("Удалить почту(ы)", "del_email")
-addition_email_button = create_inline_button("Добавить почту(ы)", "add_email")
-
-auto_mailing_add_email_button = create_inline_button("✉️ Почты", "add_email")
+auto_mailing_add_email_button = create_inline_button("✉️ Почты", "add_emails")
 auto_mailing_add_audio_button = create_inline_button("🎹 Биты", "add_audio")
 auto_mailing_settings_button = create_inline_button("⚙️ Настройки", "settings")
 
@@ -64,6 +61,9 @@ confirm_compaints_sending_button = create_inline_button("✅ Подтверди�
 cancel_complaints_sending_button = create_inline_button("🗑️ Отмена", "cancel_complaint")
 complaint_sending_without_screen_button = create_inline_button("📮 Отправить сейчас", "send_complaint_without_screen")
 
+delete_emails_button = create_inline_button("🗑️ Удалить почты", "delete_emails")
+add_emails_button = create_inline_button("📥 Добавить почты", "add_emails")
+
 
 # Определение клавиатур
 profile_inline_kb_markup = create_inline_keyboard([registration_button], [back_button])
@@ -80,8 +80,8 @@ quit_profile_kb_markup = create_inline_keyboard([support_button], [pre_log_out_b
 logout_for_sure_markup = create_inline_keyboard([log_out_for_sure_button], [back_to_log_out_menu_button])
 back_to_main_menu_markup = create_inline_keyboard([back_to_main_menu_button])
 change_profile_markup = create_inline_keyboard([change_user_profile_button], [back_to_main_menu_button])
-choose_email_action_markup = create_inline_keyboard([deletion_email_button], [addition_email_button])
-add_emails_to_list_markup = create_inline_keyboard([addition_email_button])
+choose_email_action_markup = create_inline_keyboard([delete_emails_button], [add_emails_button])
+add_emails_to_list_markup = create_inline_keyboard([add_emails_button])
 choose_auto_mailing_actions_markup = create_inline_keyboard([auto_mailing_add_email_button],
                                                             [auto_mailing_add_audio_button],
                                                             [auto_mailing_settings_button])
