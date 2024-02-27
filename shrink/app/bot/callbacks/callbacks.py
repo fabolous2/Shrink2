@@ -53,27 +53,32 @@ async def menu_call(query: CallbackQuery, event_chat: Chat, bot: Bot) -> None:
 
 #! Logout of Profile
 @router.callback_query(F.data == "quit_profile")
-async def quit_profile(query: CallbackQuery, event_chat: Chat, bot: Bot) -> None:
+async def quit_profile_call(query: CallbackQuery, bot: Bot) -> None:
+    # await query.message.edit_text(
+    #     text=get_quit_profile(),
+    #     reply_markup=inline.quit_profile_kb_markup,
+    #     disable_web_page_preview=True
+    # )
+
     await bot.edit_message_text(
-        get_quit_profile(),
-        chat_id=event_chat.id,
-        disable_web_page_preview=True,
+        text=get_quit_profile(),
+        chat_id=query.message.chat.id,
         message_id=query.message.message_id,
         inline_message_id=query.inline_message_id,
         reply_markup=inline.quit_profile_kb_markup,
+        disable_web_page_preview=True
     )
 
 
 @router.callback_query(F.data == "pre_quit")
-async def pre_quit_profile(query: CallbackQuery, bot: Bot) -> None:
+async def pre_quit_profile(query: CallbackQuery, bot: Bot) -> None:   
     await bot.edit_message_text(
         text=get_pre_quit_text(),
-        chat_id=query.from_user.id,
+        chat_id=query.message.chat.id,
         message_id=query.message.message_id,
         inline_message_id=query.inline_message_id,
-        reply_markup=inline.log_out_for_sure_button,
+        reply_markup=inline.logout_for_sure_markup
     )
-
 
 @router.callback_query(F.data == "quit")
 @inject
@@ -84,10 +89,10 @@ async def quit_profile(
 
     await bot.edit_message_text(
         text=get_successfull_logout(),
-        chat_id=query.from_user.id,
+        chat_id=query.message.chat.id,
         message_id=query.message.message_id,
         inline_message_id=query.inline_message_id,
-        reply_markup=inline.profile_repeat_registration_kb_markup,
+        reply_markup=inline.profile_repeat_registration_kb_markup
     )
 
 

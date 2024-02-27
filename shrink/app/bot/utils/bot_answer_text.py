@@ -34,8 +34,7 @@ def get_mailing_registration_required() -> str:
 
 
 def get_quit_profile() -> str:
-    with open("app/bot/files/quit_profile.html") as html:
-        return html.read()
+    return get_text_by_key("after_quit_info_text")
 
 
 def get_how_the_bot_works() -> str:
@@ -141,3 +140,15 @@ def get_if_wrong_password() -> str:
 
 def get_choose_type_of_mailing() -> str:
     return get_text_by_key("choose_type_of_mailing")
+
+
+def get_successful_update_audio() -> str:
+    return get_text_by_key("successful_update_audio_text")
+
+
+def get_wrong_update_audio() -> str:
+    return get_text_by_key("wrong_update_audio_text")
+
+
+def get_invalid_audio_format() -> str:
+    return get_text_by_key("invalid_audio_format_text")

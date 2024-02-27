@@ -21,3 +21,15 @@ class SettingsService:
 
         if not exists:
             await self.settings_dal.add(settings)
+
+
+    async def get_user_mail_subject(self, user_id: int) -> str:
+        settings = await self.settings_dal.get_one(user_id=user_id)
+
+        return settings.email_subject
+    
+
+    async def get_user_mail_text(self, user_id: int) -> str:
+        settings = await self.settings_dal.get_one(user_id=user_id)
+
+        return settings.email_text

@@ -17,10 +17,7 @@ class UserEmailDAL:
             *(getattr(UserEmailDB, key) == value for key, value in kwargs.items() if hasattr(UserEmailDB, key))
         ))
 
-        # делаю так чтобы проверять на существование не только по id
-        
         result = await self.session.execute(query)
-
         return result.scalar_one()
 
 
@@ -57,7 +54,6 @@ class UserEmailDAL:
         query = select(UserEmailDB).filter_by(**kwargs)
 
         results = await self.session.execute(query)
-
         db_emails = results.scalars().all()
 
         return [

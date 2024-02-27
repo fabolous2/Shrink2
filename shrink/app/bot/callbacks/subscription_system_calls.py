@@ -93,7 +93,11 @@ async def choose_paysystem_call(query: CallbackQuery, state: FSMContext, user_se
 
 @router.callback_query(SubscriptionStates.WAIT_FOR_SUBSCRIPTION_TYPE)
 @inject
-async def pre_sub_choice(query: CallbackQuery, state: FSMContext, user_service: Annotated[UserService, Depends()]) -> None:
+async def pre_sub_choice(
+    query: CallbackQuery,
+    state: FSMContext,
+    user_service: Annotated[UserService, Depends()]
+) -> None:
     user_id = query.from_user.id
 
     if query.data == 'basic':

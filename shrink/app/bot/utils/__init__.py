@@ -30,7 +30,10 @@ from .bot_answer_text import (
     get_successfull_logout,
     get_user_email_addresses,
     get_if_wrong_password,
-    get_choose_type_of_mailing
+    get_choose_type_of_mailing,
+    get_successful_update_audio,
+    get_wrong_update_audio,
+    get_invalid_audio_format
 )
 from .email import parse_emails
 
@@ -69,5 +72,8 @@ __all__ = [
     "get_successfull_logout",
     "get_user_email_addresses",
     "get_if_wrong_password",
-    "get_choose_type_of_mailing"
+    "get_choose_type_of_mailing",
+    "get_successful_update_audio",
+    "get_wrong_update_audio",
+    "get_invalid_audio_format"
 ]

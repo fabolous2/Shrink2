@@ -64,6 +64,9 @@ complaint_sending_without_screen_button = create_inline_button("📮 Отпра�
 delete_emails_button = create_inline_button("🗑️ Удалить почты", "delete_emails")
 add_emails_button = create_inline_button("📥 Добавить почты", "add_emails")
 
+delete_audio_button = create_inline_button("🗑️ Удалить биты", "del_audio")
+add_audio_button = create_inline_button("🎶 Добавить биты", "add_audio")
+
 
 # Определение клавиатур
 profile_inline_kb_markup = create_inline_keyboard([registration_button], [back_button])
@@ -103,3 +106,5 @@ complaint_sending_without_screen_markup = create_inline_keyboard([complaint_send
 premium_subscription_markup = create_inline_keyboard([premium_subscription_choice_button])
 basic_subscription_markup = create_inline_keyboard([basic_subscription_choice_button])
 cancel_purchase_subscription_markup = create_inline_keyboard([create_inline_button('❌Отменить', 'cancel')])
+choose_audio_actions_kb_markup = create_inline_keyboard([delete_audio_button], [add_audio_button])
+add_audio_kb_markup = create_inline_keyboard([add_audio_button])

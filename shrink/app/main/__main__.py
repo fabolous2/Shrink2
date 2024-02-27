@@ -10,8 +10,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.main.config import BOT_TOKEN
 from app.main.ioc import DatabaseProvider, DALProvider, ServiceProvider
 
-from app.bot.handlers import commands, button_answers, pay_system, registration
-from app.bot.callbacks import support, callbacks, email_list_action_calls, subscription_system_calls
+from app.bot.handlers import commands, button_answers, pay_system, registration, mailing
+from app.bot.callbacks import support, callbacks, email_list_action_calls, subscription_system_calls, audio_list_calls
+
+from app.bot.middlewares.album_middleware import TTLCacheAlbumMiddleware
 
 
 async def main() -> None:
@@ -21,15 +23,19 @@ async def main() -> None:
                         )
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dispatcher = Dispatcher(scheduler=AsyncIOScheduler(timezone="Europe/Moscow"))
+    TTLCacheAlbumMiddleware(router=dispatcher)
+
     dispatcher.include_routers(
         commands.commands_router,
+        mailing.router,
         pay_system.router,
         registration.router,
         subscription_system_calls.router,
         support.router,
         callbacks.router,
         email_list_action_calls.router,
-        button_answers.router
+        button_answers.router,
+        audio_list_calls.router
         )
 
     setup_dishka(providers=[DatabaseProvider(), DALProvider(), ServiceProvider()], router=dispatcher)

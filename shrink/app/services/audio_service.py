@@ -8,14 +8,13 @@ class AudioService:
         self.audio_dal = audio_dal
 
 
-    async def add_audio(self, audio_list: list) -> None:
+    async def add_audio(self, audio_list: list | dict) -> None:
         await self.audio_dal.add(audio_list)
 
 
-    #TODO: get_audios
-    # async def get_user_email_list(self, user_id: int) -> str:
-    #     res = await self.email_dal.get_all(user_id=user_id)
-    #     return '\n'.join(list(map(lambda x: astuple(x)[0], res))) 
+    async def get_audio_list(self, user_id: int) -> str:
+        res = await self.audio_dal.get_all(user_id=user_id)
+        return list(map(lambda x: astuple(x)[0], res))
     
 
     #TODO: Удаление 

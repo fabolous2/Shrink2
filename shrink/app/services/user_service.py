@@ -40,6 +40,11 @@ class UserService:
         return user.personal_email
     
 
-    async def update_user_account(self, user_id: int, **kwargs) -> None:
-        user = await self.user_dal.update(user_id, **kwargs)
+    async def get_user_password(self, user_id: int) -> str:
+        user = await self.user_dal.get_one(user_id=user_id)
 
+        return user.password
+
+
+    async def update_user_account(self, user_id: int, **kwargs) -> None:
+        await self.user_dal.update(user_id, **kwargs) 
