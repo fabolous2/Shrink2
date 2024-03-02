@@ -8,20 +8,20 @@ class MailChatActionMiddleware(BaseMiddleware):
     def __init__(
         self,
         router: Optional[Router] = None,
-    ):
+    ) -> None:
         if router:
             router.message.outer_middleware(self)
             router.channel_post.outer_middleware(self)
 
     async def __call__(
             self,
-            handler:Callable[[Message,Dict[str,Any]],Awaitable[Any]],
-            event:Message,
-            data:Dict[str,Any]
+            handler: Callable[[Message, Dict[str, Any]], Awaitable[Any]],
+            event: Message,
+            data: Dict[str, Any]
     ) -> Any:
-        chat_action= get_flag(data,'chat_action')
+        chat_action = get_flag(data, 'chat_action')
         if not chat_action:
-            return await handler(event,data)
+            return await handler(event, data)
 
-        async with ChatActionSender(action=chat_action,chat_id=event.chat.id,bot=event.bot):
-            return await event.answer("Loading..."),await handler(event,data)
+        async with ChatActionSender(action=chat_action, chat_id=event.chat.id, bot=event.bot):
+            return await event.answer("Loading..."), await handler(event, data)

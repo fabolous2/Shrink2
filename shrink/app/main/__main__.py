@@ -14,6 +14,7 @@ from app.bot.handlers import commands, button_answers, pay_system, registration,
 from app.bot.callbacks import support, callbacks, email_list_action_calls, subscription_system_calls, audio_list_calls
 
 from app.bot.middlewares.album_middleware import TTLCacheAlbumMiddleware
+from app.bot.middlewares.chat_actions_middleware import MailChatActionMiddleware
 
 
 async def main() -> None:
@@ -23,7 +24,10 @@ async def main() -> None:
                         )
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dispatcher = Dispatcher(scheduler=AsyncIOScheduler(timezone="Europe/Moscow"))
+    
+    dispatcher.message.middleware.register(MailChatActionMiddleware(router=dispatcher))
     TTLCacheAlbumMiddleware(router=dispatcher)
+
 
     dispatcher.include_routers(
         commands.commands_router,

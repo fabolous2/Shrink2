@@ -12,7 +12,7 @@ class AudioService:
         await self.audio_dal.add(audio_list)
 
 
-    async def get_audio_list(self, user_id: int) -> str:
+    async def get_audio_list(self, user_id: int) -> list:
         res = await self.audio_dal.get_all(user_id=user_id)
         return list(map(lambda x: astuple(x)[0], res))
     

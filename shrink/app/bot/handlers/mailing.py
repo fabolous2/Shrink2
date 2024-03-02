@@ -1,12 +1,13 @@
+from aiosmtplib import SMTPConnectError, SMTPSenderRefused
 from typing import Annotated
 
 from aiogram import Bot, Router, F
-from aiogram.types import ContentType, Chat
+from aiogram.types import ContentType, Chat, User
 from aiogram.fsm.context import FSMContext
 from aiogram_album import AlbumMessage
 
 from app.bot.states import SelfMailingStatesGroup
-from app.services import MailingService, UserService, SettingsService
+from app.services import MailingService, EmailService, AudioService
 
 from dishka.integrations.aiogram import inject, Depends
 
@@ -15,41 +16,81 @@ router = Router()
 
 
 #Self - Mailing
-@router.message(SelfMailingStatesGroup.WAIT_FOR_AUDIOS, F.media_group_id)
+@router.message(
+        SelfMailingStatesGroup.WAIT_FOR_AUDIOS,
+        F.media_group_id,
+        flags={'chat_action': 'upload_document'}
+)
 @inject
 async def self_mailing_handler(
     audio_messages: AlbumMessage,
-    mailing_service: MailingService,
-    user_service: Annotated[UserService, Depends()],
-    settings_service: Annotated[SettingsService, Depends()],
+    mailing_service: Annotated[MailingService, Depends()],
     state: FSMContext,
     bot: Bot,
     event_chat: Chat
 ) -> None:
     user_data = await state.get_data()
-    user_id = audio_messages.from_user.id
     await state.clear()
-    print(user_id)
-    email_from = await user_service.get_user_personal_email(user_id=user_id)
-    user_password = await user_service.get_user_password(user_id=user_id)
-    email_message = await settings_service.get_user_mail_text(user_id=user_id)
+
+    user_id = audio_messages.from_user.id
     emails_to = '\n'.join([email for email in user_data.values()]).split()
-    
-    audio_info = await mailing_service.conduct_audio_info(audio_messages=audio_messages)
-    print(audio_info)
-    [
-        await mailing_service.attach_audio(audio=audio, bot=bot, email_message=email_message)
-        for audio in audio_info
-    ]
-    
+
+    await mailing_service.attach_message(user_id=user_id, emails_to=emails_to)
+
+    for audio_msg in audio_messages:
+        filename = audio_msg.audio.file_name
+
+        audio_file_info = await bot.get_file(audio_msg.audio.file_id)
+        audio_data = await bot.download_file(audio_file_info.file_path)
+        await mailing_service.attach_audio(audio_data=audio_data, filename=filename)
+
     try:
-        await mailing_service.login(user_email=email_from, password=user_password)
-        await mailing_service.sending_email(email_from=email_from, emails_to=emails_to, email_message=email_message)
+        await mailing_service.connect(user_id=user_id)
+
+    except SMTPConnectError:
+        await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")
+
+    try:
+        await mailing_service.send_email(user_id=user_id, emails_to=emails_to)
         await bot.send_message(chat_id=event_chat.id, text="Аудиофайл(ы) успешно отправлены на указанные адреса")
+
+    except SMTPSenderRefused:
+        await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
     
-    except Exception:
-        await bot.send_message(chat_id=event_chat.id, text=...)
 
+# Auto-mailing
+@inject
+async def auto_mailing_handler(
+    mailing_service: Annotated[MailingService, Depends()],
+    email_service: Annotated[EmailService, Depends()],
+    audio_service: Annotated[AudioService, Depends()],
+    bot: Bot,
+    event_chat: Chat,
+    event_from_user: User         
+) -> None:
+    user_id = event_from_user.id
+    emails_to = await email_service.get_user_email_list(user_id=user_id)
+    audio_list = await audio_service.get_audio_list(user_id=user_id)
 
-#TODO: Auto-Mailing
-# async def auto_mailing_handler()
+    await mailing_service.attach_message(user_id=user_id, emails_to=emails_to)
+
+    for audio in audio_list:
+        filename = audio[1]
+
+        audio_file_info = await bot.get_file(audio[0])
+        audio_data = await bot.download_file(audio_file_info.file_path)
+        await mailing_service.attach_audio(audio_data=audio_data, filename=filename)
+
+    try:
+        await mailing_service.connect(user_id=user_id)
+
+    except SMTPConnectError:
+        await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")
+
+    try:
+        await mailing_service.send_email(user_id=user_id, emails_to=emails_to)
+        await bot.send_message(chat_id=event_chat.id, text="Аудиофайл(ы) успешно отправлены на указанные адреса")
+
+    except SMTPSenderRefused:
+        await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
+    
