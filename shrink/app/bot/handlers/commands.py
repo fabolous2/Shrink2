@@ -1,15 +1,13 @@
 import re
 from datetime import datetime
 from typing import Annotated
-
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram import Router, F, Bot
 from aiogram.types import Message
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.media_group import MediaGroupBuilder
-
 from dishka.integrations.aiogram import inject, Depends
-
 from app.models import User, EmailSettings as Settings
 from app.services import UserService, SettingsService, EmailService, AudioService
 from app.bot.utils import (
@@ -21,7 +19,6 @@ from app.bot.utils import (
     get_user_email_addresses,
 )
 from app.main.config import ADMIN_ID
-
 from app.bot.states import (
     SupportStatesGroup,
     RegistrationStatesGroup,
@@ -32,7 +29,6 @@ from app.bot.states import (
     DeletionEmailStatesGroup,
     SelfMailingStatesGroup
 )
-
 from app.bot.keyboard import inline
 from app.bot.keyboard import reply
 
@@ -191,6 +187,7 @@ async def get_mail_time(
     message: Message,
     state: FSMContext,
     settings_service: Annotated[SettingsService, Depends()],
+    scheduler: AsyncIOScheduler
 ) -> None:
     pattern = r"^\d+\d[:]\d+\d$"
 
@@ -199,13 +196,13 @@ async def get_mail_time(
 
     try:
         # Convert the message.text string to a time object
-        schedule_time = datetime.strptime(message.text, "%H:%M").time()
+        schedule_time = datetime.strptime(message.text, "%H:%M").time() 
 
         # Update the settings with the converted time object
         await settings_service.update_settings(
             user_id=message.from_user.id, schedule_time=schedule_time
         )
-
+        # scheduler.add_job(some_task)
         await message.answer("Вы успешно установили время отправки!")
         await state.clear()
 
@@ -310,8 +307,8 @@ async def get_audio_list_call(
 
         for audio_chunk in chunks:
             media_group = MediaGroupBuilder()
-            # добавление аудио в builder
             [media_group.add_audio(media=audio) for audio in audio_chunk]
+
             await bot.send_media_group(user_id, media_group.build())
 
         await message.answer(

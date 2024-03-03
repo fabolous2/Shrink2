@@ -2,7 +2,7 @@ from aiosmtplib import SMTPConnectError, SMTPSenderRefused
 from typing import Annotated
 
 from aiogram import Bot, Router, F
-from aiogram.types import ContentType, Chat, User
+from aiogram.types import ContentType, Chat, User, Message
 from aiogram.fsm.context import FSMContext
 from aiogram_album import AlbumMessage
 
@@ -13,7 +13,6 @@ from dishka.integrations.aiogram import inject, Depends
 
 
 router = Router()
-
 
 #Self - Mailing
 @router.message(
@@ -56,9 +55,54 @@ async def self_mailing_handler(
 
     except SMTPSenderRefused:
         await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
-    
 
-# Auto-mailing
+
+@router.message(
+        SelfMailingStatesGroup.WAIT_FOR_AUDIOS,
+        F.content_type == ContentType.AUDIO,
+        flags={'chat_action': 'upload_document'}
+)
+@inject
+async def self_mailing_one_audio(
+    audio_message: Message,
+    mailing_service: Annotated[MailingService, Depends()],
+    state: FSMContext,
+    bot: Bot,
+    event_chat: Chat
+) -> None:
+    user_data = await state.get_data()
+    await state.clear()
+
+    user_id = audio_message.from_user.id
+    emails_to = '\n'.join([email for email in user_data.values()]).split()
+    await mailing_service.attach_message(user_id=user_id, emails_to=emails_to)
+
+    filename = audio_message.audio.file_name
+    audio_file_info = await bot.get_file(audio_message.audio.file_id)
+    audio_data = await bot.download_file(audio_file_info.file_path)
+    await mailing_service.attach_audio(audio_data=audio_data, filename=filename)
+
+    try:
+        await mailing_service.connect(user_id=user_id)
+    except SMTPConnectError:
+        await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")
+
+    try:
+        await mailing_service.send_email(user_id=user_id, emails_to=emails_to)
+        await bot.send_message(chat_id=event_chat.id, text="Аудиофайл(ы) успешно отправлены на указанные адреса")
+    except SMTPSenderRefused:
+        await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
+
+
+@router.message(SelfMailingStatesGroup.WAIT_FOR_AUDIOS, ~F.content_type == ContentType.AUDIO)
+async def incorrect_file_format(
+    bot: Bot,
+    event_chat: Chat
+) -> None:
+    await bot.send_message(chat_id=event_chat.id, text="Вы отправили неверный формат файла. Оправлять можно только аудио")
+
+
+#TODO: Auto-mailing
 @inject
 async def auto_mailing_handler(
     mailing_service: Annotated[MailingService, Depends()],
@@ -94,3 +138,9 @@ async def auto_mailing_handler(
     except SMTPSenderRefused:
         await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
     
+
+@inject
+async def auto_mailing_verify(
+    mes
+) -> None:
+    pass
