@@ -1,13 +1,14 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
 
 from .base import Base
 
-class UserAudio(Base):
-    __tablename__ = "user_audios"
+class AudioFile(Base):
+    __tablename__ = 'audio_files'
 
-    id = Column("id", Integer, primary_key=True)
-    file_id = Column("file_id", String)
-    name = Column("name", String)
-    size = Column("size", Integer)
-    is_sent = Column("is_sent", Boolean, default=False)
-    user_id = Column("user_id", ForeignKey('users.user_id'))
+    audio_id = Column('audio_id', Integer, primary_key=True)
+    user_id = Column('user_id', Integer, ForeignKey('users.user_id'))
+    audio_name = Column('filename', String)
+    audio_size = Column('size', String)
+    user = relationship('User', back_populates='audio_files')
+    sent_audios = relationship('SentAudio', back_populates='audio_files')

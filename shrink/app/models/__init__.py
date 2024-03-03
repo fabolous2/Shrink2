@@ -2,6 +2,8 @@ from .user import User, UserSubscription
 from .email import UserEmail
 from .audio import UserAudio
 from .email_settings import EmailSettings
+from .audio_history import SentAudio
+from .admin import Admin
 
 
 __all__ = [
@@ -9,5 +11,7 @@ __all__ = [
     "UserEmail",
     "UserAudio",
     "UserSubscription",
-    "EmailSettings"
+    "EmailSettings",
+    "SentAudio",
+    "Admin"
 ]

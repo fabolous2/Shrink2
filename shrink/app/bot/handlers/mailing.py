@@ -139,8 +139,3 @@ async def auto_mailing_handler(
         await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
     
 
-@inject
-async def auto_mailing_verify(
-    mes
-) -> None:
-    pass

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -7,4 +7,3 @@ class UserAudio:
     name: str
     size: int
     user_id: int
-    is_sent: bool = field(default=False)

@@ -3,5 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class UserEmail:
-    to: str
+    email_id: int
     user_id: int
+    email_address: str
+
