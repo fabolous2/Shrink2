@@ -13,7 +13,6 @@ from app.bot.handlers import commands, button_answers, pay_system, registration,
 from app.bot.callbacks import support, callbacks, email_list_action_calls, subscription_system_calls, audio_list_calls
 from app.bot.middlewares.album_middleware import TTLCacheAlbumMiddleware
 from app.bot.middlewares.chat_actions_middleware import MailChatActionMiddleware
-from app.bot.handlers.mailing import auto_mailing_verify
 from apscheduler_di import ContextSchedulerDecorator
 
 logger = logging.getLogger(__name__)
@@ -24,11 +23,7 @@ def register_all_middlewares(dispatcher: Dispatcher) -> None:
     dispatcher.message.middleware.register(TTLCacheAlbumMiddleware(router=dispatcher))
 
 
-def set_scheduled_jobs(scheduler: AsyncIOScheduler, bot: Bot, *args, **kwargs) -> None:
-    scheduler.add_job(
-        func=auto_mailing_verify,
-        trigger= 1
-    )
+# def set_scheduled_jobs(scheduler: AsyncIOScheduler, bot: Bot, *args, **kwargs) -> None:
 
 
 async def main() -> None:
@@ -36,7 +31,7 @@ async def main() -> None:
         level=logging.INFO,
         format=u'%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s',
     )
-    storage = RedisStorage()
+    storage = RedisStorage.from_url('redis://localhost:6379/0')
     jobstores = {
         'default': RedisJobStore(
             jobs_key='dispatched_trips_jobs',
@@ -50,10 +45,7 @@ async def main() -> None:
     scheduler.ctx.add_instance(instance=bot, declared_class=Bot)
 
     register_all_middlewares(dispatcher=dispatcher)
-    set_scheduled_jobs(
-        scheduler=scheduler,
-        bot=bot
-    )
+
 
     dispatcher.include_routers(
         commands.commands_router,
@@ -75,7 +67,6 @@ async def main() -> None:
         await dispatcher.start_polling(bot, skip_updates=True)
     finally:
         await dispatcher.storage.close()
-        await dispatcher.storage.wait_closed()
         await bot.session.close()
 
 

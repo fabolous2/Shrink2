@@ -1,10 +1,8 @@
-from dataclasses import asdict
-
 from sqlalchemy import insert, select, exists, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserEmail
-from app.data.models import UserEmail as UserEmailDB
+from app.data.models import ArtistEmail as UserEmailDB
 
 
 class UserEmailDAL:
@@ -40,8 +38,9 @@ class UserEmailDAL:
         db_email = results.scalar_one()
 
         return UserEmail(
-            to=db_email.to, 
-            user_id=db_email.user_id,
+            email_id=db_email.email_id,
+            email_address=db_email.to, 
+            user_id=db_email.user_id
         )
 
 
@@ -58,8 +57,9 @@ class UserEmailDAL:
 
         return [
             UserEmail(
-                to=db_email.to, 
-                user_id=db_email.user_id,
+                email_id=db_email.email_id,
+                email_address=db_email.to, 
+                user_id=db_email.user_id
             ) for db_email in db_emails
         ]
 
@@ -72,6 +72,5 @@ class UserEmailDAL:
                 if hasattr(UserEmailDB, key)
             }
         )
-        for i in query:
-            await self.session.execute(i)
+        await self.session.execute(query)
         await self.session.commit()

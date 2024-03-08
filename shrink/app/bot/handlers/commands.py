@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.utils.media_group import MediaGroupBuilder
 from dishka.integrations.aiogram import inject, Depends
 from app.models import User, EmailSettings as Settings
-from app.services import UserService, SettingsService, EmailService, AudioService
+from app.services import UserService, SettingsService, EmailService, AudioService, MailingService
 from app.bot.utils import (
     get_greeting,
     get_registration_info,
@@ -31,6 +31,9 @@ from app.bot.states import (
 )
 from app.bot.keyboard import inline
 from app.bot.keyboard import reply
+from app.bot.handlers.mailing import auto_mailing_verify
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 
 commands_router = Router(name=__name__)
@@ -42,10 +45,19 @@ commands_router = Router(name=__name__)
 async def start_command_handler(
     message: Message,
     user_service: Annotated[UserService, Depends()],
-    settings_service: Annotated[SettingsService, Depends()],
+    settings_service: Annotated[SettingsService, Depends()]
+    # mailing_service: Annotated[MailingService, Depends()],
+    # scheduler: AsyncIOScheduler
 ) -> None:
     await user_service.save_user(User(user_id=message.from_user.id))
     await settings_service.save_user_settings(Settings(user_id=message.from_user.id))
+        
+    # scheduler.add_job(
+    #     func=auto_mailing_verify,
+    #     trigger="interval",
+    #     seconds=5
+    # )
+    # scheduler.start()
 
     await message.answer(
         get_greeting(message.from_user.username),
@@ -224,7 +236,7 @@ async def handle_audio(
 
     email_to_list = []
     for email in email_to:
-        email_dict = {"user_id": user_id, "to": email}
+        email_dict = {"user_id": user_id, "email_address": email}
         email_to_list.append(email_dict)
 
     await email_service.update_email_list(email_to_list)
@@ -241,7 +253,7 @@ async def get_email_list(
 ) -> None:
     user_id = message.from_user.id
     email_list = await email_service.get_user_email_list(user_id=user_id)
-    print(email_list)
+
     if email_list:
         await message.answer(
             get_user_email_addresses(email_list=email_list),
@@ -264,7 +276,6 @@ async def del_email(message: Message, state: FSMContext):
     await state.set_state(DeletionEmailStatesGroup.WAIT_FOR_DEL_EMAIL)
 
 
-# TODO: удаление почт
 @commands_router.message(DeletionEmailStatesGroup.WAIT_FOR_DEL_EMAIL)
 @inject
 async def email_del(
@@ -295,7 +306,9 @@ async def email_del(
 @commands_router.message(Command("audio_list"))
 @inject
 async def get_audio_list_call(
-    message: Message, audio_service: Annotated[AudioService, Depends()], bot: Bot
+    message: Message,
+    audio_service: Annotated[AudioService, Depends()],
+    bot: Bot
 ) -> None:
     user_id = message.from_user.id
     audio_list = await audio_service.get_audio_list(user_id)
@@ -323,7 +336,7 @@ async def get_audio_list_call(
 
 
 @commands_router.message(SelfMailingStatesGroup.WAIT_FOR_EMAILS)
-async def get_email_to_mail(message: Message, state: FSMContext):
+async def get_audio_for_mailing(message: Message, state: FSMContext) -> None:
     await state.update_data(email=message.text.replace(' ', '').replace(',', '\n'))
     await message.answer("Отправьте аудио 🎵")
     await state.set_state(SelfMailingStatesGroup.WAIT_FOR_AUDIOS)

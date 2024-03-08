@@ -33,3 +33,9 @@ class SettingsService:
         settings = await self.settings_dal.get_one(user_id=user_id)
 
         return settings.email_text
+    
+
+    async def get_user_scheduler(self, user_id: int) -> str:
+        settings = await self.settings_dal.get_one(user_id=user_id)
+        
+        return settings.schedule_time

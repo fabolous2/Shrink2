@@ -25,8 +25,8 @@ async def support_button_answer_handler(
 
 @router.message(F.text == "📨 Рассылка")
 @inject
-async def mailing_button_answer_handler(message: Message, state: FSMContext, user_service: Annotated[UserService, Depends()]) -> None:
-    registered = await user_service.user_email_and_password_is_set(message.from_user.id)
+async def mailing_button_answer_handler(message: Message, user_service: Annotated[UserService, Depends()]) -> None:
+    registered = await user_service.user_is_registered(message.from_user.id)
     
     if not registered:
         await message.answer(

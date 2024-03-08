@@ -1,24 +1,30 @@
 from io import BytesIO
 
-from aiosmtplib import SMTP, SMTPConnectError
+from aiosmtplib import SMTP
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email import encoders
 from email.mime.base import MIMEBase
 
 from app.services import UserService, SettingsService
+from app.bot.handlers.mailing import auto_mailing_verify
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 
 
 class MailingService:
     def __init__(
             self,
             settings_service: SettingsService,
-            user_service: UserService
+            user_service: UserService,
+            scheduler: AsyncIOScheduler
     ) -> None:
         self.settings_service = settings_service
         self.user_service = user_service
         self.email_message = MIMEMultipart()
         self.client = SMTP(hostname='smtp.gmail.com', port=587)
+        self.scheduler = scheduler
     
 
     async def connect(self, user_id: int) -> None:
@@ -63,3 +69,10 @@ class MailingService:
                 self.email_message.as_string()
             )
             await client.quit()
+
+
+    async def set_scheduler(self, user_id: int) -> None:
+        schedule_time = self.settings_service.get_user_scheduler(user_id=user_id)
+
+        if schedule_time:
+            self.scheduler.add_job

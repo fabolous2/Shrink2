@@ -9,3 +9,4 @@ class EmailSettings:
     email_text: str = field(default=None)
     amount: int = field(default=None)
     schedule_time: time = field(default=None)
+    is_turned_on: bool = field(default=None)

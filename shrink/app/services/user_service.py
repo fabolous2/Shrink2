@@ -19,8 +19,7 @@ class UserService:
         await self.user_dal.update(user_id, **kwargs)
 
 
-    async def user_email_and_password_is_set(self, user_id: int) -> bool:
-        """Заполнен ли email"""
+    async def user_is_registered(self, user_id: int) -> bool:
         return await self.user_dal.is_column_filled(user_id, "personal_email", "password")
 
 

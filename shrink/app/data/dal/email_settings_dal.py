@@ -1,4 +1,4 @@
-from dataclasses import asdict, astuple
+from dataclasses import asdict
 
 from sqlalchemy import insert, select, exists, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,22 +37,21 @@ class EmailSettingsDAL:
 
     async def get_one(self, **kwargs) -> EmailSettings:
         exists = await self.exists(**kwargs)
-        
+
         if not exists:
             return None
         
         query = select(EmailSettingsDB).filter_by(**kwargs)
-
         results = await self.session.execute(query)
-
         db_email = results.scalar_one()
 
         return EmailSettings(
-            quantity=db_email.quantity,
+            amount=db_email.amount,
             schedule_time=db_email.schedule_time,
             email_subject=db_email.email_subject,
             email_text=db_email.email_text,
-            user_id=db_email.user_id
+            user_id=db_email.user_id,
+            is_turned_on=db_email.is_turned_on
             
         )
 
@@ -69,23 +68,13 @@ class EmailSettingsDAL:
 
         db_emails = results.scalars().all()
 
-        # settings = [EmailSettings(
-        #         quantity=db_email.quantity,
-        #         schedule_time=db_email.schedule_time,
-        #         email_subject=db_email.email_subject,
-        #         email_text=db_email.email_text,
-        #         user_id=db_email.user_id
-        #     ) for db_email in db_emails
-        # ]
-
-        # return astuple(settings)
-
         return [
             EmailSettings(
-                quantity=db_email.quantity,
+                amount=db_email.amount,
                 schedule_time=db_email.schedule_time,
                 email_subject=db_email.email_subject,
                 email_text=db_email.email_text,
-                user_id=db_email.user_id
+                user_id=db_email.user_id,
+                is_turned_on=db_email.is_turned_on
             ) for db_email in db_emails
         ]

@@ -98,7 +98,8 @@ def get_auto_mailing_settings_info(settings_info: EmailSettings) -> str:
         settings_info.email_subject,
         settings_info.email_text,
         settings_info.schedule_time,
-        settings_info.quantity
+        settings_info.amount,
+        # settings_info.is_turned_on
     )
 
  

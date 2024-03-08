@@ -1,5 +1,4 @@
 from dataclasses import astuple
-from app.models import UserEmail
 from app.data.dal import UserEmailDAL
 
 

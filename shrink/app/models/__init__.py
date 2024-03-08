@@ -2,7 +2,7 @@ from .user import User, UserSubscription
 from .email import UserEmail
 from .audio import UserAudio
 from .email_settings import EmailSettings
-from .audio_history import SentAudio
+from .sent_audio import SentAudio
 from .admin import Admin
 
 
