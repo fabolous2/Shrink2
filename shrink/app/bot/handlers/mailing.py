@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram_album import AlbumMessage
 
 from app.bot.states import SelfMailingStatesGroup
-from app.services import MailingService, EmailService, AudioService
+from app.services import EmailService, AudioService, MailingService
 
 from dishka.integrations.aiogram import inject, Depends
 

@@ -39,7 +39,7 @@ class UserEmailDAL:
 
         return UserEmail(
             email_id=db_email.email_id,
-            email_address=db_email.to, 
+            email_address=db_email.email_address, 
             user_id=db_email.user_id
         )
 
@@ -58,7 +58,7 @@ class UserEmailDAL:
         return [
             UserEmail(
                 email_id=db_email.email_id,
-                email_address=db_email.to, 
+                email_address=db_email.email_address, 
                 user_id=db_email.user_id
             ) for db_email in db_emails
         ]

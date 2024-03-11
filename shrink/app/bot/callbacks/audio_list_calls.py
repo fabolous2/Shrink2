@@ -3,7 +3,7 @@ from aiogram_album import AlbumMessage
 
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Chat, Message, ContentType
+from aiogram.types import CallbackQuery, Message, ContentType
 from aiogram.utils.media_group import MediaGroupBuilder
 
 from app.bot.utils import (
@@ -16,7 +16,7 @@ from app.bot.utils import (
 from app.bot.states import AddAudiosStatesGroup, DelAudioStatesGroup
 
 from app.bot.keyboard import inline
-from app.services import AudioService
+from app.services import AudioService, SettingsService
 
 from dishka.integrations.aiogram import inject, Depends
 
@@ -28,61 +28,84 @@ async def add_audio_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer(get_add_audio_text())
     await state.set_state(AddAudiosStatesGroup.WAIT_FOR_AUDIOS)
 
-
-@router.message(AddAudiosStatesGroup.WAIT_FOR_AUDIOS, F.media_group_id)
+# AddAudiosStatesGroup.WAIT_FOR_AUDIOS, 
+@router.message(F.media_group_id)
 @inject
 async def audio_handler(
     album_message: AlbumMessage,
     state: FSMContext,
-    audio_service: Annotated[AudioService, Depends()]
+    audio_service: Annotated[AudioService, Depends()],
+    settings_service: Annotated[SettingsService, Depends()]
 ) -> None:
-    audio_info = [
+    user_id = album_message.from_user.id
+    index, amount_left = await audio_service.generate_index_service(user_id=user_id)
+    settings = await settings_service.get_user_settings_content(user_id=user_id)
+    
+    audio_list = [
         {
-        'file_id': audio_message.audio.file_id,
-        'name': audio_message.audio.file_name,
+        'audio_id': audio_message.audio.file_id,
+        'audio_name': audio_message.audio.file_name,
         'size': audio_message.audio.file_size,
-        'user_id': audio_message.from_user.id
+        'user_id': audio_message.from_user.id,
+        'audio_index': index
         }
-        for audio_message in album_message
+        for audio_message in album_message if audio_message.audio
     ]
+    start_index = 0
+    count = 0
+    if amount_left != 0:
+        for audio in audio_list[:amount_left]:
+            start_index += 1
+            count += 1
+        
+    first_index = audio_list[start_index]["audio_index"]
+    for i in range(len(audio_list)):
+        temp = count // settings.amount + first_index
+        audio_list[i]['audio_index'] = temp
+        count += 1
+
+    for j in audio_list:
+        print(j['audio_index'])
 
     try:
-        await audio_service.add_audio(audio_info)
-        await album_message.answer("Вы успешно обновили свой список аудио\nДля его просмотра воспользуйтесь коммандой\n"
-                                "/audio_list")
-        
-    except Exception:
-        await album_message.answer("Что то пошло не так, попробуйте обратиться в поддержку \n/support ")
+        await audio_service.add_audio(audio_list)
+        await album_message.answer("Вы успешно обновили свой список аудио\nДля его просмотра воспользуйтесь коммандой\n/audio_list")        
+    except Exception as _ex:
+        print(_ex)
+        await album_message.answer("Что то пошло не так, попробуйте обратиться в поддержку \n/support")
 
     await state.clear()
 
-
-@router.message(AddAudiosStatesGroup.WAIT_FOR_AUDIOS, F.content_type == ContentType.AUDIO)
+# AddAudiosStatesGroup.WAIT_FOR_AUDIOS, 
+@router.message(F.content_type == ContentType.AUDIO)
 @inject
 async def get_one_audio(
     audio_message: Message,
     state: FSMContext,
     audio_service: Annotated[AudioService, Depends()]
 ) -> None:
-    audio_info = {
-        'file_id': audio_message.audio.file_id,
-        'name': audio_message.audio.file_name,
+    index = await audio_service.generate_index_service(user_id=audio_message.from_user.id)
+    audio_list = {
+        'audio_id': audio_message.audio.file_id,
+        'audio_name': audio_message.audio.file_name,
         'size': audio_message.audio.file_size,
-        'user_id': audio_message.from_user.id
+        'user_id': audio_message.from_user.id,
+        'audio_index': index[0]
     }
 
     try:
-        await audio_service.add_audio(audio_info)
-        await audio_message.answer()
+        await audio_service.add_audio(audio_list)
+        await audio_message.answer("Вы успешно обновили свой список аудио\nДля его просмотра воспользуйтесь коммандой\n/audio_list")
         
-    except Exception:
+    except Exception as _ex:
+        print(_ex)
         await audio_message.answer("Что то пошло не так, попробуйте обратиться в поддержку \n/support ")
     await state.clear()
 
 
 @router.message(AddAudiosStatesGroup.WAIT_FOR_AUDIOS, ~F.content_type.in_({'audio','media_group_id'}))
 async def cancel_update_audio(message: Message):
-    await message.answer("Вы отправили неправильный формат файла(поддерживается только mp3")
+    await message.answer(get_invalid_audio_format())
 
 
 #TODO: Audio Deleting
@@ -101,10 +124,8 @@ async def get_audio_list_call(
 ) -> None:
     user_id = query.from_user.id
     audio_list = await audio_service.get_audio_list(user_id)
-    print(audio_list)
-    
+
     if audio_list:
-        # audio_list=list(filter(lambda x: len(x)==71 or len(x)==72, get_audio_file(user_id).split()))
         chunks = [audio_list[i:i + 10] for i in range(0, len(audio_list), 10)]
         await query.answer("Вот ваш список аудио:")
 

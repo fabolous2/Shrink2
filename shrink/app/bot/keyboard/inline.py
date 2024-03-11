@@ -67,6 +67,9 @@ add_emails_button = create_inline_button("📥 Добавить почты", "ad
 delete_audio_button = create_inline_button("🗑️ Удалить биты", "del_audio")
 add_audio_button = create_inline_button("🎶 Добавить биты", "add_audio")
 
+turn_on_auto_mailing_button = create_inline_button("🟢Включить авто-рассылку", "turn_on_mailing")
+turn_off_auto_mailing_button = create_inline_button("🔴Выключить авто-рассылку", "turn_off_mailing")
+
 
 # Определение клавиатур
 profile_inline_kb_markup = create_inline_keyboard([registration_button], [back_button])
@@ -88,9 +91,15 @@ add_emails_to_list_markup = create_inline_keyboard([add_emails_button])
 choose_auto_mailing_actions_markup = create_inline_keyboard([auto_mailing_add_email_button],
                                                             [auto_mailing_add_audio_button],
                                                             [auto_mailing_settings_button])
-settings_choice_markup = create_inline_keyboard([set_subject_and_description_button],
+turned_on_settings_choice_markup = create_inline_keyboard(
+                                                [set_subject_and_description_button],
                                                 [set_email_scheculer_button],
-                                                [set_audio_quantity_button])
+                                                [set_audio_quantity_button],
+                                                [turn_on_auto_mailing_button])
+turned_off_settings_choice_markup = create_inline_keyboard([set_subject_and_description_button],
+                                                [set_email_scheculer_button],
+                                                [set_audio_quantity_button],
+                                                [turn_off_auto_mailing_button])
 subscription_choice_markup = create_inline_keyboard([premium_subscription_choice_button], [basic_subscription_choice_button])
 payment_system_choice = create_inline_keyboard([ukassa_payment_button],
                                                [freekassa_payment_button],

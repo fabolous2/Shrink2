@@ -3,7 +3,6 @@ from typing import Annotated
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Chat
-from aiogram.filters import ExceptionMessageFilter
 
 from app.bot.utils import (
     get_quit_profile,
@@ -24,10 +23,8 @@ from app.bot.utils import (
     get_registration_info
 )
 from app.bot.keyboard import inline
-from app.services import UserService, SettingsService
+from app.services import UserService, SettingsService, MailingService
 from app.bot.states import (
-    AddAudiosStatesGroup,
-    DelAudioStatesGroup,
     SelfMailingStatesGroup,
     EmailQuantityStatesGroup,
     RegistrationStatesGroup,
@@ -114,11 +111,11 @@ async def get_user_profile_info(
     bot: Bot
 ) -> None:
     user_id = query.from_user.id
-    is_register = await user_service.user_email_and_password_is_set(user_id)
+    is_registered = await user_service.user_is_registered(user_id)
     user_email = await user_service.get_user_personal_email(user_id)
     user_subscription = await user_service.user_subscription(user_id)
 
-    if is_register:
+    if is_registered:
         await bot.edit_message_text(
             chat_id=query.message.chat.id,
             message_id=query.message.message_id,
@@ -174,25 +171,39 @@ async def settings_call(
         text=get_auto_mailing_settings_info(settings_info),
         chat_id=query.message.chat.id,
         message_id=query.message.message_id,
-        reply_markup=inline.settings_choice_markup
+        reply_markup=inline.turned_off_settings_choice_markup
+        if settings_info.is_turned_on
+        else inline.turned_on_settings_choice_markup
     )
 
 
 @router.callback_query(F.data == "set_quantity")
-async def quantity_call(query: CallbackQuery, state: FSMContext) -> None:
-    await query.message.answer(get_quantity_text())
+async def quantity_call(query: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    await bot.edit_message_text(
+        text=get_quantity_text(),
+        chat_id=query.message.chat.id,
+        message_id=query.message.message_id
+    )
     await state.set_state(EmailQuantityStatesGroup.WAIT_FOR_QUANTITY)
 
 
 @router.callback_query(F.data == "set_email_content")
-async def desc_call(query: CallbackQuery, state: FSMContext) -> None:
-    await query.message.answer(get_email_subject_text())
+async def desc_call(query: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    await bot.edit_message_text(
+        text=get_email_subject_text(),
+        chat_id=query.message.chat.id,
+        message_id=query.message.message_id
+    )
     await state.set_state(EmailContentStatesGroup.WAIT_FOR_SUBJECT)
 
 
 @router.callback_query(F.data == "set_scheduler")
-async def mail_time_call(query: CallbackQuery, state: FSMContext) -> None:
-    await query.message.answer(get_email_scheduler_time())
+async def mail_time_call(query: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    await bot.edit_message_text(
+        text=get_email_scheduler_time(),
+        chat_id=query.message.chat.id,
+        message_id=query.message.message_id
+    )
     await state.set_state(EmailScheduleStatesGroup.WAIT_FOR_TIME)
 
 
@@ -204,7 +215,7 @@ async def self_mailing_call(query: CallbackQuery, state: FSMContext) -> None:
 
 
 #EMAIL CONNECTION
-@router.callback_query(F.data == "registration")
+@router.callback_query(F.data.in_(['repeat_registration', 'registration']))
 async def connect_call(query: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
     await query.message.answer(text=get_registration_info(),
@@ -212,10 +223,47 @@ async def connect_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.answer("Отправь свой Gmail")
 
 
-#RE-REGISTRATION EMAIL
-@router.callback_query(F.data == "repeat_registration")
-async def re_reg_call(query: CallbackQuery, state: FSMContext) -> None:
-    await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
-    await query.message.answer(text=get_registration_info(),
-                               disable_web_page_preview=True)
-    await query.message.answer("Отправь свой Gmail")
+@router.callback_query(F.data == "turn_on_mailing")
+@inject
+async def turn_on_mailing_call(
+    query: CallbackQuery,
+    mailing_service: Annotated[MailingService, Depends()],
+    settings_service: Annotated[SettingsService, Depends()],
+    bot: Bot
+) -> None:
+    user_id = query.from_user.id
+    user_settings = await settings_service.get_user_settings_content(user_id=user_id)
+
+    try:
+        await mailing_service.turn_on_scheduler(user_id=user_id)
+        await bot.edit_message_text(
+            text=get_auto_mailing_settings_info(user_settings),
+            chat_id=query.message.chat.id,
+            message_id=query.message.message_id,
+            reply_markup=inline.turned_off_settings_choice_markup
+        )
+        await query.answer(f"Вы успешно включили авто-рассылку!\n(Ежедневно в {user_settings.schedule_time})")
+
+    except Exception:
+        await query.answer("У вас не установлено расписание отправки!")
+
+
+@router.callback_query(F.data == "turn_off_mailing")
+@inject
+async def turn_off_mailing_call(
+    query: CallbackQuery,
+    mailing_service: Annotated[MailingService, Depends()],
+    settings_service: Annotated[SettingsService, Depends()],
+    bot: Bot
+) -> None:
+    user_id = query.from_user.id
+    user_settings = await settings_service.get_user_settings_content(user_id=user_id)
+
+    await mailing_service.turn_off_scheduler(user_id=user_id)
+    await bot.edit_message_text(
+        text=get_auto_mailing_settings_info(user_settings),
+        chat_id=query.message.chat.id,
+        message_id=query.message.message_id,
+        reply_markup=inline.turned_on_settings_choice_markup
+    )
+    await query.answer("Вы успешно выключили авто-рассылку")

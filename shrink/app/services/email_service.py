@@ -13,7 +13,7 @@ class EmailService:
 
     async def get_user_email_list(self, user_id: int) -> str:
         res = await self.email_dal.get_all(user_id=user_id)
-        return '\n'.join(list(map(lambda x: astuple(x)[0], res))) 
+        return '\n'.join(list(map(lambda x: astuple(x)[1], res))) 
     
 
     async def delete_emails(self, emails_to_del: list) -> None:

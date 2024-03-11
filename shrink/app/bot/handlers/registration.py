@@ -38,9 +38,9 @@ async def get_user_email(message: Message, state: FSMContext, bot: Bot) -> None:
 async def get_user_password(
     message: Message, state: FSMContext, user_service: Annotated[UserService, Depends()]
 ) -> None:
-
     password = message.text
     user_id = message.from_user.id
+    subscription = await user_service.user_subscription(user_id=user_id)
 
     if (
         len(password) < 19
@@ -56,13 +56,11 @@ async def get_user_password(
     await state.update_data(password=password)
     data = await state.get_data()
 
-    print(data)
-
-    formatted_text = []
+    formatted_text = [] 
     [formatted_text.append(value) for key, value in data.items()]
 
     await user_service.update_user(
-        user_id,
+        user_id=user_id,
         personal_email=formatted_text[0],
         password=formatted_text[1],
     )
@@ -71,7 +69,11 @@ async def get_user_password(
 
     await message.answer("Поздравляю, вы успешно вошли в аккаунт!")
     await message.answer(
-        text=get_profile_content(),
+        text=get_profile_content(
+            first_name=message.from_user.first_name,
+            email=formatted_text[0],
+            subscription=subscription
+        ),
         reply_markup=inline.change_profile_markup,
         disable_web_page_preview=True,
     )

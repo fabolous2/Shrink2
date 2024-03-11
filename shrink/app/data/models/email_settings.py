@@ -5,7 +5,7 @@ from .base import Base
 
 class UserEmailSettings(Base):
     __tablename__ = "email_settings"
-
+ 
     id = Column("id", Integer, primary_key=True)
     user_id = Column("user_id", ForeignKey("user.user_id"))  
     amount = Column('amount', Integer)

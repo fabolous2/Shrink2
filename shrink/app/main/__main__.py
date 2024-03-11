@@ -10,17 +10,19 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.main.config import BOT_TOKEN
 from app.main.ioc import DatabaseProvider, DALProvider, ServiceProvider
 from app.bot.handlers import commands, button_answers, pay_system, registration, mailing
-from app.bot.callbacks import support, callbacks, email_list_action_calls, subscription_system_calls, audio_list_calls
+from app.bot.callbacks import support, callbacks, subscription_system_calls, audio_list_calls
 from app.bot.middlewares.album_middleware import TTLCacheAlbumMiddleware
 from app.bot.middlewares.chat_actions_middleware import MailChatActionMiddleware
 from apscheduler_di import ContextSchedulerDecorator
 
+from app.bot.callbacks import email_list_action_calls
+
 logger = logging.getLogger(__name__)
 
 
-def register_all_middlewares(dispatcher: Dispatcher) -> None:      
-    dispatcher.message.middleware.register(MailChatActionMiddleware(router=dispatcher))
-    dispatcher.message.middleware.register(TTLCacheAlbumMiddleware(router=dispatcher))
+# def register_all_middlewares(dispatcher: Dispatcher) -> None:      
+#     dispatcher.message.middleware.register(MailChatActionMiddleware(router=dispatcher))
+#     dispatcher.message.middleware.register(TTLCacheAlbumMiddleware(router=dispatcher))
 
 
 # def set_scheduled_jobs(scheduler: AsyncIOScheduler, bot: Bot, *args, **kwargs) -> None:
@@ -44,7 +46,9 @@ async def main() -> None:
     dispatcher = Dispatcher(scheduler=scheduler, storage=storage)
     scheduler.ctx.add_instance(instance=bot, declared_class=Bot)
 
-    register_all_middlewares(dispatcher=dispatcher)
+    dispatcher.message.middleware.register(MailChatActionMiddleware(router=dispatcher))
+    TTLCacheAlbumMiddleware(router=dispatcher)
+
 
 
     dispatcher.include_routers(

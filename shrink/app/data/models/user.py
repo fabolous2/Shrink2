@@ -12,7 +12,7 @@ class User(Base):
     password = Column("password", String)
     email_limit = Column("email_limit", Integer, default=50)
     subscription = Column("subscription", Enum(UserSubscription), default=UserSubscription.NOT_SUBSCRIBED)
-
+ 
     user_emails = relationship('ArtistEmail', back_populates='user')
     audio_files = relationship('AudioFile', back_populates='user')
     sent_audios = relationship('SentAudio', back_populates='user')

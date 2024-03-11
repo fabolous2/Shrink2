@@ -7,7 +7,6 @@ from aiogram_album.album_message import AlbumMessage
 
 
 class TTLCacheAlbumMiddleware(BaseMiddleware):
-
     def __init__(
         self,
         latency: Union[int, float] = 0.2,

@@ -5,6 +5,6 @@ class Admin(Base):
     __tablename__ = "admins"
 
     admin_id = Column('admin_id', Integer, unique=True, primary_key=True)
-    username = Column('username', String)
+    username = Column('username', String) 
     real_name = Column('real_name', String)
     admin_status = Column('admin_status', String)

@@ -35,7 +35,6 @@ from app.bot.handlers.mailing import auto_mailing_verify
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-
 commands_router = Router(name=__name__)
 
 
@@ -46,8 +45,6 @@ async def start_command_handler(
     message: Message,
     user_service: Annotated[UserService, Depends()],
     settings_service: Annotated[SettingsService, Depends()]
-    # mailing_service: Annotated[MailingService, Depends()],
-    # scheduler: AsyncIOScheduler
 ) -> None:
     await user_service.save_user(User(user_id=message.from_user.id))
     await settings_service.save_user_settings(Settings(user_id=message.from_user.id))
@@ -179,13 +176,13 @@ async def set_quantity(
     state: FSMContext,
     settings_service: Annotated[SettingsService, Depends()],
 ) -> None:
-    quantity = message.text
+    amount = message.text
     user_id = message.from_user.id
 
     try:
-        int(quantity)
-
-        await settings_service.update_settings(user_id=user_id, quantity=quantity)
+        int(amount)
+        
+        await settings_service.update_settings(user_id=user_id, amount=amount)
         await message.answer("Вы успешно установили значение!")
         await state.clear()
 
@@ -199,9 +196,11 @@ async def get_mail_time(
     message: Message,
     state: FSMContext,
     settings_service: Annotated[SettingsService, Depends()],
-    scheduler: AsyncIOScheduler
+    mailing_service: Annotated[MailingService, Depends()]
 ) -> None:
+    user_id = message.from_user.id
     pattern = r"^\d+\d[:]\d+\d$"
+    user_settings = await settings_service.get_user_settings_content(user_id=user_id)
 
     if not re.match(pattern, message.text):
         await message.answer("Время введено неверно. Попробуйте еще раз!")
@@ -212,9 +211,12 @@ async def get_mail_time(
 
         # Update the settings with the converted time object
         await settings_service.update_settings(
-            user_id=message.from_user.id, schedule_time=schedule_time
+            user_id=user_id, schedule_time=schedule_time
         )
-        # scheduler.add_job(some_task)
+        
+        if user_settings.is_turned_on:
+            await mailing_service.turn_on_scheduler(user_id=user_id)
+
         await message.answer("Вы успешно установили время отправки!")
         await state.clear()
 
@@ -340,3 +342,9 @@ async def get_audio_for_mailing(message: Message, state: FSMContext) -> None:
     await state.update_data(email=message.text.replace(' ', '').replace(',', '\n'))
     await message.answer("Отправьте аудио 🎵")
     await state.set_state(SelfMailingStatesGroup.WAIT_FOR_AUDIOS)
+
+
+@commands_router.message(Command('test'))
+@inject
+async def test_bot(message: Message, audio_service: Annotated[AudioService, Depends()]) -> None:
+    await audio_service.generate_index(user_id=message.from_user.id)

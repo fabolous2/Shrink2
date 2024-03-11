@@ -1,9 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class UserEmail:
-    email_id: int
     user_id: int
     email_address: str
+    email_id: int = field(default=0)
 

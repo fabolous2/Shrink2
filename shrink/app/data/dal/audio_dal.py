@@ -1,11 +1,15 @@
-from sqlalchemy import insert, select, exists, and_
+from sqlalchemy import insert, select, exists, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from app.models import UserAudio
 from app.data.models import AudioFile, SentAudio, User, ArtistEmail
 
 class UserAudioDAL:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+            self,
+            session: AsyncSession
+    ) -> None:
         self.session = session
 
 
@@ -28,17 +32,15 @@ class UserAudioDAL:
 
     async def get_one(self, **kwargs) -> UserAudio:
         query = select(AudioFile).filter_by(**kwargs)
-
         results = await self.session.execute(query)
-
         db_audio = results.scalar_one()
 
         return UserAudio(
-            file_id=db_audio.file_id,
-            name=db_audio.name,
+            file_id=db_audio.audio_id,
+            name=db_audio.audio_name,
             size=db_audio.size,
-            is_sent=db_audio.is_sent,
-            user_id=db_audio.user_id
+            user_id=db_audio.user_id,
+            audio_index=db_audio.audio_index
         )
 
 
@@ -55,11 +57,11 @@ class UserAudioDAL:
      
         return [
             UserAudio(
-                file_id=db_audio.file_id,
-                name=db_audio.name,
+                file_id=db_audio.audio_id,
+                name=db_audio.audio_name,
                 size=db_audio.size,
-                is_sent=db_audio.is_sent,
-                user_id=db_audio.user_id
+                user_id=db_audio.user_id,
+                audio_index=db_audio.audio_index
             ) for db_audio in db_audios
         ]
     
@@ -84,3 +86,38 @@ class UserAudioDAL:
         result = await self.session.execute(query)
 
         return [row for row in result.scalars()]
+
+
+    async def get_last_index(self, user_id: int) -> int:
+        query = (
+            select(AudioFile.audio_index)
+            .filter_by(user_id=user_id)
+            .order_by(AudioFile.audio_index.desc())
+        )
+        results = await self.session.execute(query)
+        last_index = results.scalars().first()
+
+        return last_index
+
+
+    async def generate_index(self, user_id: int, amount: int) -> tuple[int, int]:
+        exists = await self.exists(user_id=user_id)
+        
+        if not exists:
+            return 0, 0
+        
+        last_index = await self.get_last_index(user_id=user_id)
+        query = select(func.count(AudioFile.audio_index)).where(
+            and_(
+                AudioFile.user_id == user_id,
+                AudioFile.audio_index == last_index
+            )
+        )
+        result = await self.session.execute(query)
+        result = result.scalar_one()
+
+        if result == amount:
+            return last_index + 1, 0
+        
+        else:
+            return  last_index, amount - result

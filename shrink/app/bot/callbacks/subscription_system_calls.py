@@ -26,10 +26,10 @@ router = Router(name=__name__)
 @inject
 async def subscribes_call(query: CallbackQuery, user_service: Annotated[UserService, Depends()]) -> None:
     user_id = query.from_user.id
-    email_and_password_filled = await user_service.user_email_and_password_is_set(user_id)
+    is_registered = await user_service.user_is_registered(user_id)
     subscription = await user_service.user_subscription(user_id)
     
-    if not email_and_password_filled:
+    if not is_registered:
         return await query.message.edit_text('Сначала зарегистрируйтесь! 🧿',
                                              reply_markup=inline.profile_inline_kb_markup)
         
