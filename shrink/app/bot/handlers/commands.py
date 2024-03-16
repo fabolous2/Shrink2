@@ -1,9 +1,8 @@
 import re
 from datetime import datetime
 from typing import Annotated
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram import Router, F, Bot
-from aiogram.types import Message
+from aiogram.types import Message, Chat
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.media_group import MediaGroupBuilder
@@ -179,15 +178,16 @@ async def set_quantity(
     amount = message.text
     user_id = message.from_user.id
 
-    try:
-        int(amount)
-        
-        await settings_service.update_settings(user_id=user_id, amount=amount)
-        await message.answer("Вы успешно установили значение!")
-        await state.clear()
+    # try:
+    int(amount)
+    await settings_service.set_amount(user_id=user_id, amount=amount)
+    # await settings_service.update_settings(user_id=user_id, amount=amount)
+    await message.answer("Вы успешно установили значение!")
+    await state.clear()
 
-    except Exception:
-        await message.answer("Отправьте число!")
+    # except Exception as _ex:
+    #     print(_ex)
+    #     await message.answer("Отправьте число!")
 
 
 @commands_router.message(EmailScheduleStatesGroup.WAIT_FOR_TIME)
@@ -196,7 +196,9 @@ async def get_mail_time(
     message: Message,
     state: FSMContext,
     settings_service: Annotated[SettingsService, Depends()],
-    mailing_service: Annotated[MailingService, Depends()]
+    mailing_service: Annotated[MailingService, Depends()],
+    bot: Bot,
+    event_chat: Chat
 ) -> None:
     user_id = message.from_user.id
     pattern = r"^\d+\d[:]\d+\d$"
@@ -215,7 +217,7 @@ async def get_mail_time(
         )
         
         if user_settings.is_turned_on:
-            await mailing_service.turn_on_scheduler(user_id=user_id)
+            await mailing_service.turn_on_mailing(user_id=user_id, bot=bot, event_chat=event_chat)
 
         await message.answer("Вы успешно установили время отправки!")
         await state.clear()
@@ -346,5 +348,5 @@ async def get_audio_for_mailing(message: Message, state: FSMContext) -> None:
 
 @commands_router.message(Command('test'))
 @inject
-async def test_bot(message: Message, audio_service: Annotated[AudioService, Depends()]) -> None:
-    await audio_service.generate_index(user_id=message.from_user.id)
+async def test_bot(message: Message, service: Annotated[MailingService, Depends()]) -> None:
+    await service.auto_mailing_verify(user_id=message.from_user.id)

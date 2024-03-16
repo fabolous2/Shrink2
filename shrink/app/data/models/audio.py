@@ -14,4 +14,3 @@ class AudioFile(Base):
     audio_index = Column('audio_index', Integer)
     
     user = relationship('User', back_populates='audio_files')
-    sent_audios = relationship('SentAudio', back_populates='audio_files')

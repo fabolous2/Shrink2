@@ -15,4 +15,3 @@ class User(Base):
  
     user_emails = relationship('ArtistEmail', back_populates='user')
     audio_files = relationship('AudioFile', back_populates='user')
-    sent_audios = relationship('SentAudio', back_populates='user')

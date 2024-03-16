@@ -13,4 +13,3 @@ class ArtistEmail(Base):
     email_address = Column('email_address', String)
     
     user = relationship('User', back_populates='user_emails')
-    sent_audios = relationship('SentAudio', back_populates='user_emails')

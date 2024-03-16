@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class UserAudio:
+    id: int
     file_id: str
     name: str
     size: int

@@ -1,9 +1,9 @@
-from sqlalchemy import insert, select, exists, and_, func
+from sqlalchemy import insert, select, exists, and_, func, update, bindparam
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 from app.models import UserAudio
-from app.data.models import AudioFile, SentAudio, User, ArtistEmail
+from app.data.models import AudioFile, User, ArtistEmail
 
 class UserAudioDAL:
     def __init__(
@@ -36,9 +36,10 @@ class UserAudioDAL:
         db_audio = results.scalar_one()
 
         return UserAudio(
+            id=db_audio.id,
             file_id=db_audio.audio_id,
             name=db_audio.audio_name,
-            size=db_audio.size,
+            size=db_audio.audio_size,
             user_id=db_audio.user_id,
             audio_index=db_audio.audio_index
         )
@@ -51,37 +52,37 @@ class UserAudioDAL:
             return None
         
         query = select(AudioFile).filter_by(**kwargs)
-
         results = await self.session.execute(query)
         db_audios = results.scalars().all()
      
         return [
             UserAudio(
+                id=db_audio.id,
                 file_id=db_audio.audio_id,
                 name=db_audio.audio_name,
-                size=db_audio.size,
+                size=db_audio.audio_size,
                 user_id=db_audio.user_id,
                 audio_index=db_audio.audio_index
             ) for db_audio in db_audios
         ]
-    
 
-    async def get_unsent_audio_ids(self) -> list[int]:
-        query = (
-            select(AudioFile.audio_id)
-            .join(User, AudioFile.user_id == User.user_id)
-            .join(ArtistEmail, User.user_id == ArtistEmail.user_id)
-            .where(
-                ~exists()
-                .select()
-                .where(
-                    and_(
-                        SentAudio.audio_id == AudioFile.audio_id,
-                        SentAudio.email_id == ArtistEmail.email_id,
-                    )
-                )
-            )
-        )
+
+    # async def get_unsent_audio_ids(self) -> list[int]:
+    #     query = (
+    #         select(AudioFile.audio_id)
+    #         .join(User, AudioFile.user_id == User.user_id)
+    #         .join(ArtistEmail, User.user_id == ArtistEmail.user_id)
+    #         .where(
+    #             ~exists()
+    #             .select()
+    #             .where(
+    #                 and_(
+    #                     SentAudio.audio_id == AudioFile.audio_id,
+    #                     SentAudio.email_id == ArtistEmail.email_id,
+    #                 )
+    #             )
+    #         )
+    #     )
 
         result = await self.session.execute(query)
 
@@ -121,3 +122,34 @@ class UserAudioDAL:
         
         else:
             return  last_index, amount - result
+    
+
+    async def update(self, audio_list: list[dict]) -> None:
+        query = update(AudioFile)
+        await self.session.execute(query, audio_list)
+        await self.session.commit()
+
+    
+    async def get_auto_mailing_audio(self, user_id: int, email_indexes: int) -> list[UserAudio]:
+        query = (
+            select(AudioFile)
+            .where(
+                and_(
+                    AudioFile.user_id == user_id,
+                    AudioFile.audio_index == email_indexes
+                )
+            )
+        )
+        audio_list = await self.session.execute(query)
+        db_audios = audio_list.scalars().all()
+
+        return [
+            UserAudio(
+                id=db_audio.id,
+                file_id=db_audio.audio_id,
+                name=db_audio.audio_name,
+                size=db_audio.audio_size,
+                user_id=db_audio.user_id,
+                audio_index=db_audio.audio_index
+            ) for db_audio in db_audios
+        ]

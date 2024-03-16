@@ -34,39 +34,11 @@ async def add_audio_call(query: CallbackQuery, state: FSMContext) -> None:
 async def audio_handler(
     album_message: AlbumMessage,
     state: FSMContext,
-    audio_service: Annotated[AudioService, Depends()],
-    settings_service: Annotated[SettingsService, Depends()]
+    audio_service: Annotated[AudioService, Depends()]
 ) -> None:
     user_id = album_message.from_user.id
-    index, amount_left = await audio_service.generate_index_service(user_id=user_id)
-    settings = await settings_service.get_user_settings_content(user_id=user_id)
-    
-    audio_list = [
-        {
-        'audio_id': audio_message.audio.file_id,
-        'audio_name': audio_message.audio.file_name,
-        'size': audio_message.audio.file_size,
-        'user_id': audio_message.from_user.id,
-        'audio_index': index
-        }
-        for audio_message in album_message if audio_message.audio
-    ]
-    start_index = 0
-    count = 0
-    if amount_left != 0:
-        for audio in audio_list[:amount_left]:
-            start_index += 1
-            count += 1
-        
-    first_index = audio_list[start_index]["audio_index"]
-    for i in range(len(audio_list)):
-        temp = count // settings.amount + first_index
-        audio_list[i]['audio_index'] = temp
-        count += 1
-
-    for j in audio_list:
-        print(j['audio_index'])
-
+    audio_list = await audio_service.create_audio_list(user_id=user_id, album_message=album_message)
+    [print(audio['audio_index']) for audio in audio_list]
     try:
         await audio_service.add_audio(audio_list)
         await album_message.answer("Вы успешно обновили свой список аудио\nДля его просмотра воспользуйтесь коммандой\n/audio_list")        

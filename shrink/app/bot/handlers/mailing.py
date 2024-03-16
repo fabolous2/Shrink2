@@ -33,26 +33,19 @@ async def self_mailing_handler(
 
     user_id = audio_messages.from_user.id
     emails_to = '\n'.join([email for email in user_data.values()]).split()
-
     await mailing_service.attach_message(user_id=user_id, emails_to=emails_to)
 
-    for audio_msg in audio_messages:
-        filename = audio_msg.audio.file_name
-
-        audio_file_info = await bot.get_file(audio_msg.audio.file_id)
-        audio_data = await bot.download_file(audio_file_info.file_path)
-        await mailing_service.attach_audio(audio_data=audio_data, filename=filename)
+   
+    [await mailing_service.attach_audio(audio=audio, bot=bot) for audio in audio_messages]
 
     try:
         await mailing_service.connect(user_id=user_id)
-
     except SMTPConnectError:
         await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")
 
     try:
         await mailing_service.send_email(user_id=user_id, emails_to=emails_to)
         await bot.send_message(chat_id=event_chat.id, text="Аудиофайл(ы) успешно отправлены на указанные адреса")
-
     except SMTPSenderRefused:
         await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
 
@@ -118,23 +111,16 @@ async def auto_mailing_handler(
 
     await mailing_service.attach_message(user_id=user_id, emails_to=emails_to)
 
-    for audio in audio_list:
-        filename = audio[1]
 
-        audio_file_info = await bot.get_file(audio[0])
-        audio_data = await bot.download_file(audio_file_info.file_path)
-        await mailing_service.attach_audio(audio_data=audio_data, filename=filename)
+    await mailing_service.attach_audio(audio_list=audio_list, bot=bot)
 
     try:
         await mailing_service.connect(user_id=user_id)
-
-    except SMTPConnectError:
-        await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")
-
-    try:
         await mailing_service.send_email(user_id=user_id, emails_to=emails_to)
         await bot.send_message(chat_id=event_chat.id, text="Аудиофайл(ы) успешно отправлены на указанные адреса")
 
+    except SMTPConnectError:
+        await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")     
     except SMTPSenderRefused:
         await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
     

@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 from dishka import Provider, provide, Scope
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, async_sessionmaker, AsyncSession
 
+
 from app.main.config import DATABASE_URL
 
 from app.services import UserService, SettingsService, EmailService, AudioService, MailingService
@@ -18,7 +19,7 @@ class DatabaseProvider(Provider):
     def get_async_sessionmaker(self, engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
         return async_sessionmaker(bind=engine)
 
-    @provide(scope=Scope.APP, provides=AsyncSession)
+    @provide(scope=Scope.REQUEST, provides=AsyncSession)
     async def get_async_session(self, sessionmaker: async_sessionmaker[AsyncSession]) -> AsyncGenerator[AsyncSession, None]:
         async with sessionmaker() as session:
             yield session

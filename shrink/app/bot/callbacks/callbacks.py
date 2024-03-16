@@ -31,6 +31,7 @@ from app.bot.states import (
     EmailContentStatesGroup,
     EmailScheduleStatesGroup
 )
+from app.bot.utils.errors import SchedulerNotSetError, AudioNotAddedError, EmailAudioNotAddedError, EmailNotAddedError
 
 from dishka.integrations.aiogram import inject, Depends
 
@@ -229,23 +230,34 @@ async def turn_on_mailing_call(
     query: CallbackQuery,
     mailing_service: Annotated[MailingService, Depends()],
     settings_service: Annotated[SettingsService, Depends()],
-    bot: Bot
+    bot: Bot,
+    event_chat: Chat
 ) -> None:
     user_id = query.from_user.id
     user_settings = await settings_service.get_user_settings_content(user_id=user_id)
 
-    try:
-        await mailing_service.turn_on_scheduler(user_id=user_id)
-        await bot.edit_message_text(
-            text=get_auto_mailing_settings_info(user_settings),
-            chat_id=query.message.chat.id,
-            message_id=query.message.message_id,
-            reply_markup=inline.turned_off_settings_choice_markup
-        )
-        await query.answer(f"Вы успешно включили авто-рассылку!\n(Ежедневно в {user_settings.schedule_time})")
+    # try:
+    await mailing_service.turn_on_mailing(user_id=user_id, bot=bot, event_chat=event_chat)
+    await bot.edit_message_text(
+        text=get_auto_mailing_settings_info(user_settings),
+        chat_id=query.message.chat.id,
+        message_id=query.message.message_id,
+        reply_markup=inline.turned_off_settings_choice_markup
+    )
+    await query.answer(f"Вы успешно включили авто-рассылку!\n(Ежедневно в {user_settings.schedule_time})")
 
-    except Exception:
-        await query.answer("У вас не установлено расписание отправки!")
+    # except SchedulerNotSetError:
+    #     await query.answer("У вас не установлено время отправки!")
+    # except EmailNotAddedError:
+    #     await query.answer("Добавьте почты!")
+    # except AudioNotAddedError:
+    #     await query.answer("Добавьте аудио!")
+    # except EmailAudioNotAddedError:
+    #     await query.answer("Добавьте аудио и почты получателей!")
+
+    # except Exception as _ex:
+    #     print(_ex)
+    #     await query.answer("Упс...Что-то пошло не так :(")
 
 
 @router.callback_query(F.data == "turn_off_mailing")
