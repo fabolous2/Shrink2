@@ -349,4 +349,4 @@ async def get_audio_for_mailing(message: Message, state: FSMContext) -> None:
 @commands_router.message(Command('test'))
 @inject
 async def test_bot(message: Message, service: Annotated[MailingService, Depends()]) -> None:
-    await service.auto_mailing_verify(user_id=message.from_user.id)
+    await service.test(user_id=message.from_user.id)

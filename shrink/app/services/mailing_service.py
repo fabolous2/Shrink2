@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email import encoders
 from email.mime.base import MIMEBase
+from email.message import EmailMessage
 
 from app.services import UserService, SettingsService, AudioService, EmailService
 from app.bot.utils.errors import (
@@ -140,8 +141,9 @@ class MailingService:
                 self.scheduler.remove_all_jobs()
                 self.scheduler.add_job(
                     func=self.auto_mailing_starter,
-                    trigger="interval",
-                    seconds=10,
+                    trigger="cron",
+                    hour=schedule_time.hour,
+                    minute=schedule_time.minute,
                     kwargs={'user_id': user_id, 'bot': bot, 'event_chat': event_chat}
                 )
                 self.scheduler.start()
@@ -173,4 +175,7 @@ class MailingService:
     
 
     async def test(self, user_id: int) -> None:
-        await self.email_dal.count_emails_to_send(user_id=user_id)
+        schedule_time = await self.settings_service.get_user_scheduler(user_id=user_id)
+        print(schedule_time)
+        print(type(schedule_time))
+        print(schedule_time.hour)
