@@ -68,18 +68,14 @@ class MailingService:
     
     async def attach_message(
             self,
-            user_id: int,
-            emails_to: list
-    ) -> None:
+            user_id: int
+        ) -> None:
         message = await self.settings_service.get_user_mail_text(user_id=user_id)
-
-        self.email_message['From'] = await self.user_service.get_user_personal_email(user_id=user_id)
         self.email_message['Subject'] = await self.settings_service.get_user_mail_subject(user_id=user_id)
-        self.email_message['To'] = emails_to
         self.email_message.attach(MIMEText(f"<html><body>{message}</body></html>", "html", "utf-8"))
 
-    
-    async def send_email(self, user_id: int, emails_to: str) -> None:
+
+    async def send_email(self, user_id: int, emails_to: list) -> None:
         user_email = await self.user_service.get_user_personal_email(user_id=user_id)
         async with self.client as client:
             await client.sendmail(
@@ -89,34 +85,32 @@ class MailingService:
             )
             await client.quit()
 
-
-    async def auto_send_email(self, user_id: int, emails_to: str, index: int) -> None:
+    async def auto_send_email(self, user_id: int, emails_to: list, index: int) -> None:
         user_email = await self.user_service.get_user_personal_email(user_id=user_id)
+        self.email_message['From'] = user_email
+        self.email_message['Bcc'] = ", ".join(emails_to)
         async with self.client as client:
             await client.sendmail(
                 user_email,
                 emails_to,
                 self.email_message.as_string()
             )
+            await client.quit()
             await self.email_dal.update_index(user_id=user_id, index=index)
-            await client.quit()        
+            self.email_message = MIMEMultipart()
+
         
 
     async def auto_mailing_starter(self, user_id: int, bot: Bot, event_chat: Chat) -> None:
         email_indexes = await self.email_dal.count_emails_to_send(user_id=user_id)
         email_amount = len(email_indexes) if len(email_indexes)>0 else None
-        print(email_indexes)
         if not email_amount:
             raise NotAvailableToSend("User must add more email addresses or audio files")
 
         for email_index in email_indexes:
-            print(email_index)
             audio_list = await self.audio_dal.get_auto_mailing_audio(user_id=user_id, email_indexes=email_index)
-            email_list = await self.email_dal.get_auto_email_list(user_id=user_id, indexes=email_index)
-            emails_to = ', '.join(email_list)
-            print(emails_to)
-            print(audio_list)
-            await self.attach_message(user_id=user_id, emails_to=emails_to)
+            emails_to = await self.email_dal.get_auto_email_list(user_id=user_id, indexes=email_index)
+            await self.attach_message(user_id=user_id)
             [await self.attach_audio(audio=audio, bot=bot) for audio in audio_list]
 
             try:
