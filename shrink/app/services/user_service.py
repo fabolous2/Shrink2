@@ -35,7 +35,6 @@ class UserService:
 
     async def get_user_personal_email(self, user_id: int) -> str:
         user = await self.user_dal.get_one(user_id=user_id)
-
         return user.personal_email
     
 

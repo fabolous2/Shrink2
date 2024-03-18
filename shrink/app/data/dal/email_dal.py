@@ -80,22 +80,22 @@ class UserEmailDAL:
         await self.session.commit()
 
     
-    async def update_index(self, user_id: int, index: int) -> None:
+    async def update_index(self, user_id: int, index: list) -> None:
         query = (
             update(UserEmailDB)
             .where(
                 and_(
                     UserEmailDB.user_id == user_id,
-                    UserEmailDB.email_id == index
+                    UserEmailDB.email_id.in_(index)
                 )
             )
-            .values(email_id=index + 1)
+            .values(email_id=UserEmailDB.email_id + 1)
         )
         await self.session.execute(query)
         await self.session.commit()
 
     
-    async def count_emails_to_send(self, user_id: int) -> int | None:
+    async def get_email_indexes_to_send(self, user_id: int) -> int | None:
         subquery = (
             select(func.max(AudioFile.audio_index))
             .filter_by(user_id=user_id)

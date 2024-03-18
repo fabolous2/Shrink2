@@ -69,9 +69,7 @@ class UserDAL:
             return None
 
         query = select(UserDB).filter_by(**kwargs)
-
         res = await self.session.execute(query)
-
         return res
 
 
@@ -80,7 +78,6 @@ class UserDAL:
 
         if res:
             db_user = res.scalar_one_or_none()
-
             return User(
                 user_id=db_user.user_id,
                 personal_email=db_user.personal_email,

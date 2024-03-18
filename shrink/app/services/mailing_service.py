@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import Bot
 from aiogram.types import Chat
 from aiogram_album import AlbumMessage
@@ -7,7 +8,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email import encoders
 from email.mime.base import MIMEBase
-from email.message import EmailMessage
 
 from app.services import UserService, SettingsService, AudioService, EmailService
 from app.bot.utils.errors import (
@@ -42,6 +42,18 @@ class MailingService:
         self.email_dal = email_dal
         self.audio_dal = audio_dal
 
+
+    async def send_email(self, user_id: int, emails_to: list) -> None:
+        user_email = await self.user_service.get_user_personal_email(user_id=user_id)
+        async with self.client as client:
+            await client.sendmail(
+                user_email,
+                emails_to,
+                self.email_message.as_string()
+            )
+            await client.quit()
+
+
     async def connect(self, user_id: int) -> None:
         user_email = await self.user_service.get_user_personal_email(user_id=user_id)
         password = await self.user_service.get_user_password(user_id=user_id)
@@ -51,6 +63,7 @@ class MailingService:
 
 
     async def attach_audio(self, audio: AlbumMessage | UserAudio, bot: Bot) -> None:
+        print('audio_attach')
         filename = audio.name if type(audio) == UserAudio else audio.audio.file_name
         audio_file_info = await bot.get_file(
             audio.file_id 
@@ -75,39 +88,25 @@ class MailingService:
         self.email_message.attach(MIMEText(f"<html><body>{message}</body></html>", "html", "utf-8"))
 
 
-    async def send_email(self, user_id: int, emails_to: list) -> None:
-        user_email = await self.user_service.get_user_personal_email(user_id=user_id)
-        async with self.client as client:
-            await client.sendmail(
-                user_email,
-                emails_to,
-                self.email_message.as_string()
-            )
-            await client.quit()
-
-    async def auto_send_email(self, user_id: int, emails_to: list, index: int) -> None:
+    async def auto_send_email(self, user_id: int, emails_to: list) -> None:
+        print('sendmail')
         user_email = await self.user_service.get_user_personal_email(user_id=user_id)
         self.email_message['From'] = user_email
         self.email_message['Bcc'] = ", ".join(emails_to)
+
         async with self.client as client:
             await client.sendmail(
                 user_email,
                 emails_to,
                 self.email_message.as_string()
             )
-            await client.quit()
-            await self.email_dal.update_index(user_id=user_id, index=index)
             self.email_message = MIMEMultipart()
+            await client.quit()
 
-        
 
-    async def auto_mailing_starter(self, user_id: int, bot: Bot, event_chat: Chat) -> None:
-        email_indexes = await self.email_dal.count_emails_to_send(user_id=user_id)
-        email_amount = len(email_indexes) if len(email_indexes)>0 else None
-        if not email_amount:
-            raise NotAvailableToSend("User must add more email addresses or audio files")
-
+    async def auto_mailing(self, user_id: int, bot: Bot, event_chat: Chat, email_indexes: list[int]) -> None:
         for email_index in email_indexes:
+            print(email_index)
             audio_list = await self.audio_dal.get_auto_mailing_audio(user_id=user_id, email_indexes=email_index)
             emails_to = await self.email_dal.get_auto_email_list(user_id=user_id, indexes=email_index)
             await self.attach_message(user_id=user_id)
@@ -115,14 +114,30 @@ class MailingService:
 
             try:
                 await self.connect(user_id=user_id)
-                await self.auto_send_email(user_id=user_id, emails_to=emails_to, index=email_index)
-                
+                await self.auto_send_email(user_id=user_id, emails_to=emails_to)
             except SMTPConnectError:
                 await bot.send_message(chat_id=event_chat, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")     
             except SMTPSenderRefused:
                 await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
 
-        await bot.send_message(chat_id=event_chat.id, text="Успешно разосланы письма! Следующая рассылка в - (время)")
+
+    async def auto_mailing_starter(self, user_id: int, bot: Bot, event_chat: Chat) -> None:
+        email_indexes = await self.email_dal.get_email_indexes_to_send(user_id=user_id)
+        email_amount = len(email_indexes) if len(email_indexes)>0 else None
+        if not email_amount:
+            return await bot.send_message(
+                    chat_id=event_chat.id,
+                    text='Список доступных почт для отправки закончился. Пополните список почт, либо список аудио')
+
+        try:
+            await self.auto_mailing(user_id=user_id, bot=bot, event_chat=event_chat, email_indexes=email_indexes)
+            await self.email_dal.update_index(user_id=user_id, index=email_indexes)
+            await bot.send_message(chat_id=event_chat.id, text="Успешно разосланы письма! Следующая рассылка в - (время)")
+        except Exception:
+            await bot.send_message(
+                chat_id=event_chat.id,
+                text='Произошла неизвестная ошибка. Обратитесь в поддержку - /support'
+            )
 
 
     async def turn_on_mailing(self, user_id: int, bot: Bot, event_chat: Chat) -> None:
@@ -143,16 +158,12 @@ class MailingService:
                 self.scheduler.start()
                 await self.settings_service.update_settings(user_id=user_id, is_turned_on=True)
 
-            except NotAvailableToSend:
-                await bot.send_message(
-                    chat_id=event_chat.id,
-                    text='Список доступных почт для отправки закончился. Пополните список почт, либо список аудио'
-                )
             except SMTPAuthenticationError:
                 await bot.send_message(
                     chat_id=event_chat.id,
-                    text='Не удалось ауденцифитироваться в ва'
+                    text='Не удалось ауденцифитироваться в вашем аккаунте'
                 )
+
         elif not schedule_time:
             raise SchedulerNotSetError("Scheduler is not set")
         elif not audios and not emails:
