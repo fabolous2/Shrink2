@@ -24,4 +24,5 @@ class MailChatActionMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         async with ChatActionSender(action=chat_action, chat_id=event.chat.id, bot=event.bot):
-            return await event.answer("Loading..."), await handler(event, data)
+            # return await event.answer("Loading..."), 
+            return await handler(event, data)

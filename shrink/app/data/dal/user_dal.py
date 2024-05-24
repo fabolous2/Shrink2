@@ -1,7 +1,7 @@
 from dataclasses import asdict
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import insert, update, select, exists, delete, Result
+from sqlalchemy import insert, update, select, exists, delete, Result, and_
 
 from app.models import User
 from app.data.models import User as UserDB
@@ -10,7 +10,14 @@ from app.data.models import User as UserDB
 class UserDAL:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
-
+        
+        
+    async def get_all_user_ids(self) -> list[int]:
+        query = select(UserDB.user_id)  
+        result = await self.session.execute(query) 
+        user_ids = [row[0] for row in result.fetchall()]  
+        return user_ids
+    
 
     async def add(self, user: User) -> None:
         query = insert(UserDB).values(**asdict(user))
@@ -82,7 +89,10 @@ class UserDAL:
                 user_id=db_user.user_id,
                 personal_email=db_user.personal_email,
                 password=db_user.password,
-                subscription=db_user.subscription
+                subscription=db_user.subscription, 
+                audio_limit=db_user.audio_limit, 
+                email_limit=db_user.email_limit, 
+                sub_duration=db_user.sub_duration
             )
 
 
@@ -96,20 +106,45 @@ class UserDAL:
                     user_id=db_user.user_id,
                     personal_email=db_user.personal_email,
                     password=db_user.password,
-                    subscription=db_user.subscription
+                    subscription=db_user.subscription, 
+                    audio_limit=db_user.audio_limit,
+                    sub_duration=db_user.sub_durations
                 )
                 for db_user in db_users
             ]
+            
+            
+    async def get_user_ids(self) -> list[int]:
+        query = select(UserDB.user_id)  # Создаем запрос на выборку всех user_id
+        result = await self.session.execute(query)  # Выполняем запрос
+        user_ids = [row[0] for row in result.fetchall()] # Извлекаем user_id из результатов запроса
+        return user_ids
 
 
     async def delete(self, **kwargs) -> None:
-        query = delete(UserDB).where(
-            {
-                getattr(UserDB, key) == value
-                for key, value in kwargs.items()
-                if hasattr(UserDB, key)
-            }
-        )
+        # Построение списка условий для WHERE
+        conditions = [
+            getattr(UserDB, key) == value
+            for key, value in kwargs.items()
+            if hasattr(UserDB, key)
+        ]
+        
+        # Собираем все условия с использованием and_()
+        query = delete(UserDB).where(and_(*conditions))
 
         await self.session.execute(query)
         await self.session.commit()
+
+    # async def delete(self, **kwargs) -> None:
+    #     query = delete(UserDB).where(
+    #         {
+    #             getattr(UserDB, key) == value
+    #             for key, value in kwargs.items()
+    #             if hasattr(UserDB, key)
+    #         }
+    #     )
+
+    #     await self.session.execute(query)
+    #     await self.session.commit()
+    
+

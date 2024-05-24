@@ -4,13 +4,13 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, ContentType, Chat
 
-from app.bot.utils import (
-    get_support_answer,
+from app.bot.utils.bot_answer_text import (
     get_support_screen,
     get_user_complaint_content,
     get_successfull_complaint_cancel,
     get_successful_complaint_send,
     get_new_user_complaint_text,
+    get_wrong_user_id
 )
 from app.bot.states import SupportStatesGroup
 from app.bot.keyboard import inline
@@ -35,8 +35,8 @@ async def get_screenshot(message: Message, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "send_complaint_without_screen")
 async def sup_cancel_call(query: CallbackQuery, event_chat: Chat, bot: Bot, state: FSMContext) -> None:
+    await state.update_data(photo="None")
     state_data = await state.get_data()
-
     await bot.delete_message(
         chat_id=event_chat.id,
         message_id=query.message.message_id,
@@ -95,9 +95,13 @@ async def checkout_sup(query: CallbackQuery, state: FSMContext, bot: Bot) -> Non
         complaint_text=state_data["text"],
         photo=state_data,
     )
-
+    
     if state_data["photo"] != "None":
-        await bot.forward_message(admin_user_id, user_id, query.message.message_id)
+        print(user_id, admin_user_id)
+        await bot.forward_message(chat_id=admin_user_id,
+                                  from_chat_id=user_id,
+                                  message_id=query.message.message_id)
+        
         await bot.send_message(
             admin_user_id,
             get_new_user_complaint_text(
@@ -112,6 +116,7 @@ async def checkout_sup(query: CallbackQuery, state: FSMContext, bot: Bot) -> Non
         )
 
     else:
+        print(admin_user_id, user_id)
         await bot.forward_message(
             chat_id=admin_user_id,
             from_chat_id=user_id,
@@ -131,7 +136,7 @@ async def checkout_sup(query: CallbackQuery, state: FSMContext, bot: Bot) -> Non
         )
 
 
-@router.message(F.chat.id == ADMIN_ID)
+@router.message(lambda message: message.from_user.id == 6644596826)
 async def sup_check_admin(message: Message, bot: Bot) -> None:
     main_answer = "📮 Пришел ответ на ваше письмо!\n"
     if message.reply_to_message:
@@ -154,10 +159,11 @@ async def sup_check_admin(message: Message, bot: Bot) -> None:
             except aiogram.exceptions.TelegramBadRequest:
                 await bot.send_message(
                     admin_user_id,
-                    f"Что-то пошло не так.\n" f"Возможно неправильно введен user_id",
+                    get_wrong_user_id(),
                 )
 
         else:
+            print(user_chat_id)
             caption_text = message.reply_to_message.text
             blockquote_text = f"<blockquote>{caption_text}</blockquote>\n"
             try:
@@ -165,10 +171,10 @@ async def sup_check_admin(message: Message, bot: Bot) -> None:
                     chat_id=user_chat_id,
                     text=main_answer + blockquote_text + "Ответ: " + answer_text,
                 )
-                await bot.send_message(admin_user_id, "Ответ отправлен пользователю")
+                await bot.send_message(admin_user_id, "Ответ отправлен пользователю!")
 
             except aiogram.exceptions.TelegramBadRequest:
                 await bot.send_message(
                     admin_user_id,
-                    f"Что-то пошло не так.\n" f"Возможно неправильно введен user_id",
+                    get_wrong_user_id(),
                 )

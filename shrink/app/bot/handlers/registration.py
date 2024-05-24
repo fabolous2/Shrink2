@@ -40,8 +40,7 @@ async def get_user_password(
 ) -> None:
     password = message.text
     user_id = message.from_user.id
-    subscription = await user_service.user_subscription(user_id=user_id)
-
+    exists = await user_service.exists(user_id)
     if (
         len(password) < 19
         or len(password) > 20
@@ -55,24 +54,23 @@ async def get_user_password(
 
     await state.update_data(password=password)
     data = await state.get_data()
-
-    formatted_text = [] 
-    [formatted_text.append(value) for key, value in data.items()]
-
+    
+    if not exists:
+        await user_service.save_user(User(user_id=message.from_user.id))
+        
     await user_service.update_user(
         user_id=user_id,
-        personal_email=formatted_text[0],
-        password=formatted_text[1],
+        personal_email=data["email_from"],
+        password=data["password"],
+        subscription ='NOT_SUBSCRIBED'
     )
-    # //await update_get_pwd_from(message.from_user.id,formatted_text[1])
-    # //await update_get_email_from(user_id, formatted_text[0])
-
+    
     await message.answer("Поздравляю, вы успешно вошли в аккаунт!")
     await message.answer(
-        text=get_profile_content(
+            text=get_profile_content(
             first_name=message.from_user.first_name,
-            email=formatted_text[0],
-            subscription=subscription
+            email=data["email_from"],
+            subscription="free"
         ),
         reply_markup=inline.change_profile_markup,
         disable_web_page_preview=True,

@@ -12,5 +12,7 @@ class AudioFile(Base):
     audio_name = Column('filename', String)
     audio_size = Column('size', String)
     audio_index = Column('audio_index', Integer)
+    is_extra = Column('is_extra', Integer, default=0)
+    available_is_for_audio = Column('available_is_for_audio', Integer, default=1)
     
     user = relationship('User', back_populates='audio_files')

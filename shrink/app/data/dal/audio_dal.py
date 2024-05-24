@@ -1,4 +1,4 @@
-from sqlalchemy import insert, select, exists, and_, func, update, bindparam
+from sqlalchemy import insert, select, exists, and_, func, update, bindparam, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -28,7 +28,21 @@ class UserAudioDAL:
         query = insert(AudioFile).values(user_audio)
         await self.session.execute(query)
         await self.session.commit()
+        
+        
+    async def delete(self, **kwargs) -> None:
+        # Построение списка условий для WHERE
+        conditions = [
+            getattr(AudioFile, key) == value
+            for key, value in kwargs.items()
+            if hasattr(AudioFile, key)
+        ]
+        
+        # Собираем все условия с использованием and_()
+        query = delete(AudioFile).where(and_(*conditions))
 
+        await self.session.execute(query)
+        await self.session.commit()
 
     async def get_one(self, **kwargs) -> UserAudio:
         query = select(AudioFile).filter_by(**kwargs)
@@ -41,7 +55,8 @@ class UserAudioDAL:
             name=db_audio.audio_name,
             size=db_audio.audio_size,
             user_id=db_audio.user_id,
-            audio_index=db_audio.audio_index
+            audio_index=db_audio.audio_index,
+            available_is_for_audio=db_audio.available_is_for_audio
         )
 
 
@@ -62,7 +77,9 @@ class UserAudioDAL:
                 name=db_audio.audio_name,
                 size=db_audio.audio_size,
                 user_id=db_audio.user_id,
-                audio_index=db_audio.audio_index
+                audio_index=db_audio.audio_index, 
+                is_extra=db_audio.is_extra,
+                available_is_for_audio=db_audio.available_is_for_audio
             ) for db_audio in db_audios
         ]
 
@@ -130,13 +147,15 @@ class UserAudioDAL:
         await self.session.commit()
 
     
-    async def get_auto_mailing_audio(self, user_id: int, email_indexes: int) -> list[UserAudio]:
+    async def get_auto_mailing_audio(self, user_id: int, email_indexes: int, is_extra: int = 0) -> list[UserAudio]:
         query = (
             select(AudioFile)
             .where(
                 and_(
                     AudioFile.user_id == user_id,
-                    AudioFile.audio_index == email_indexes
+                    AudioFile.audio_index == email_indexes, 
+                    AudioFile.is_extra == is_extra, 
+                    AudioFile.available_is_for_audio == 1
                 )
             )
         )
@@ -150,6 +169,58 @@ class UserAudioDAL:
                 name=db_audio.audio_name,
                 size=db_audio.audio_size,
                 user_id=db_audio.user_id,
-                audio_index=db_audio.audio_index
+                audio_index=db_audio.audio_index, 
+                is_extra=is_extra, 
+                available_is_for_audio=db_audio.available_is_for_audio
             ) for db_audio in db_audios
         ]
+        
+    
+    async def get_audio_list_for_sub(self, user_id: int, is_extra: int = 0) -> list[UserAudio]:
+        query = (
+            select(AudioFile)
+            .where(
+                and_(
+                    AudioFile.user_id == user_id, 
+                    AudioFile.is_extra == is_extra, 
+                    AudioFile.available_is_for_audio == 1
+                )
+            )
+        )
+        audio_list = await self.session.execute(query)
+        db_audios = audio_list.scalars().all()
+
+        return [
+            UserAudio(
+                id=db_audio.id,
+                file_id=db_audio.audio_id,
+                name=db_audio.audio_name,
+                size=db_audio.audio_size,
+                user_id=db_audio.user_id,
+                audio_index=db_audio.audio_index, 
+                is_extra=is_extra, 
+                available_is_for_audio=db_audio.available_is_for_audio
+            ) for db_audio in db_audios
+        ]
+        
+    async def delete_audio_by_criteria(self, user_id: int, filename: str, size: int) -> None:
+        query = delete(AudioFile).where(
+            and_(
+                AudioFile.audio_name == filename,
+                AudioFile.audio_size == size, 
+                AudioFile.user_id == user_id
+            )
+        )
+        await self.session.execute(query)
+        await self.session.commit()
+        
+    
+    async def delete_extra_audios(self, user_id: int) -> None:
+        query = delete(AudioFile).where(
+                    and_(
+                        AudioFile.user_id == user_id,
+                        AudioFile.is_extra == 1
+                )
+        )
+        await self.session.execute(query)
+        await self.session.commit()
