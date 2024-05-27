@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 from aiogram import Bot
 from aiogram.types import Chat

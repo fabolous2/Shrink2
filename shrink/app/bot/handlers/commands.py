@@ -251,11 +251,10 @@ async def handle_audio(
     email_limit = await user_service.get_email_limit(user_id)
     
     
-    text = message.text
+    text = message.text.lower()
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     emails = re.findall(email_pattern, text)
     emails = list(set(emails))
-    print(emails)
     count = 0
     last_message_id = message.message_id - 1
     await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
@@ -300,7 +299,8 @@ async def handle_audio(
 @commands_router.message(Command("email_list"))
 @inject
 async def get_email_list(
-    message: Message, email_service: Annotated[EmailService, Depends()]
+    message: Message,
+    email_service: Annotated[EmailService, Depends()]
 ) -> None:
     user_id = message.from_user.id
     email_list = await email_service.get_user_email_list(user_id=user_id)

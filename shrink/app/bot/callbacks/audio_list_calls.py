@@ -68,8 +68,12 @@ async def show_audio_page(message, audio_list, current_page, page_count, query=N
 
 @router.callback_query(F.data == "add_audio")
 @inject
-async def add_audio_call_to_db(query: CallbackQuery, state: FSMContext, 
-                         audio_service: Annotated[AudioService, Depends()], is_extra: int = 0) -> None:
+async def add_audio_call_to_db(
+    query: CallbackQuery,
+    state: FSMContext,
+    audio_service: Annotated[AudioService, Depends()],
+    is_extra: int = 0
+) -> None:
     user_id = query.from_user.id
     audio_list = await audio_service.get_audio_list(user_id, is_extra=0)
 
@@ -94,8 +98,7 @@ async def add_audio_call_to_db(query: CallbackQuery, state: FSMContext,
         await show_audio_page(query.message, unique_extra_audio_list, 0, page_count)
 
     else:
-        await query.message.edit_text(get_empty_audio_list(), reply_markup=inline.add_audio_kb_markup
-        )
+        await query.message.edit_text(get_empty_audio_list(), reply_markup=inline.add_audio_kb_markup)
         
         
 @router.callback_query(F.data.startswith("pag_audio:"))
@@ -153,7 +156,6 @@ async def audio_handler(
     audio_service: Annotated[AudioService, Depends()], 
     user_service: Annotated[UserService, Depends()]
 ) -> None:
-    
     user_id = album_message.from_user.id
     audio_list = await audio_service.create_audio_list(user_id=user_id, album_message=album_message)
     audio_list_from_db = await audio_service.get_audio_list(user_id, is_extra=0)
@@ -203,7 +205,7 @@ async def get_one_audio(
     index = await audio_service.generate_index_service(user_id=audio_message.from_user.id)
     audio_list_from_db = await audio_service.get_audio_list(user_id, is_extra=0)
     audio_limit = await user_service.get_audio_limit(user_id=user_id)
-    
+    filename = audio_message.audio.file_name
     
     audio_list = {
         'audio_id': audio_message.audio.file_id,
@@ -212,11 +214,12 @@ async def get_one_audio(
         'user_id': audio_message.from_user.id,
         'audio_index': index[0]
     }
-
+    print()
     if len(audio_list_from_db) + 1 > audio_limit:
         await audio_message.answer(get_limit_audio_list(audio_limit, len(audio_list_from_db)))
         await state.clear()
-    
+    elif audio_message.audio.mime_type != 'audio/mpeg':
+        await audio_message.answer(get_invalid_audio_format())
     else:
         try:
             last_message_id = audio_message.message_id - 1
@@ -228,11 +231,11 @@ async def get_one_audio(
                 await audio_message.answer(get_add_audio(1), reply_markup=inline.view_audio_list_kb_markup)
             else:
                 await audio_message.answer(get_add_audio(0), reply_markup=inline.view_audio_list_kb_markup)
-            
         except Exception as _ex:
             print(_ex)
             await audio_message.answer(get_call_support())
-        await state.clear()
+        finally:
+            await state.clear()
 
 
 @router.message(AddAudiosStatesGroup.WAIT_FOR_AUDIOS, ~F.content_type.in_({'audio','media_group_id'}))

@@ -14,9 +14,8 @@ class EmailService:
     async def get_count_matching_emails(self, user_id: int, email_list: list[str]):
         return await self.email_dal.count_matching_emails(user_id, email_list)
 
-
     async def get_user_email_list(self, user_id: int) -> str | None:
-        emails = await self.email_dal.get_all(user_id=user_id, available_is = 1)
+        emails = await self.email_dal.get_all(user_id=user_id, available_is=1)
         if emails:
             email_addresses = [email.email_address for email in emails]
             return '\n'.join(email_addresses)
@@ -41,7 +40,6 @@ class EmailService:
         await self.email_dal.delete(user_id=user_id)
         
         
-
     async def update_index(self, emails: list[dict]) -> None:
         for email in emails:
             email.email_index += 1

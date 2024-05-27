@@ -42,8 +42,11 @@ async def deletion_call(query: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "add_emails")
 @inject
-async def add_email_list_to_db(query: CallbackQuery, state: FSMContext, 
-                               email_service: Annotated[EmailService, Depends()]) -> None:
+async def add_email_list_to_db(
+    query: CallbackQuery,
+    state: FSMContext,
+    email_service: Annotated[EmailService, Depends()]
+) -> None:
     user_id = query.from_user.id
     email_list = await email_service.available_email_list(user_id=user_id)
     
@@ -53,7 +56,6 @@ async def add_email_list_to_db(query: CallbackQuery, state: FSMContext,
         page_count = len(pages)
         
         await state.update_data(pages=pages)
-
         await show_email_page(query.message, pages, 0, page_count)
 
     else:

@@ -66,7 +66,7 @@ class AudioService:
             'is_extra': is_extra, 
             'available_is_for_audio': 1
             }
-            for audio_message in album_message if audio_message.audio
+            for audio_message in album_message if audio_message.audio and audio_message.audio.mime_type == 'audio/mpeg'
         ]
         start_index = 0
         count = 0
@@ -75,8 +75,6 @@ class AudioService:
             for audio in audio_list[:amount_left]:
                 start_index += 1
                 count += 1
-                
-        print(start_index, count)
             
         first_index = audio_list[start_index - 1]["audio_index"]
         if not settings.amount:

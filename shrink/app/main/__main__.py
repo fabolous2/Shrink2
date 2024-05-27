@@ -35,19 +35,19 @@ async def main() -> None:
         level=logging.INFO,
         format=u'%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s',
     )
-    storage = RedisStorage.from_url('redis://localhost:6379/0')
-    jobstores = {
-        'default': RedisJobStore(
-            jobs_key='dispatched_trips_jobs',
-            run_times_key='dispatched_trips_running',
-            db=2
-        )
-    }
-    scheduler = ContextSchedulerDecorator(AsyncIOScheduler(timezone="Europe/Moscow", jobstores=jobstores))
+    # storage = RedisStorage.from_url('redis://localhost:6379/0')
+    # jobstores = {
+    #     'default': RedisJobStore(
+    #         jobs_key='dispatched_trips_jobs',
+    #         run_times_key='dispatched_trips_running',
+    #         db=2
+    #     )
+    # }
+    # scheduler = ContextSchedulerDecorator(AsyncIOScheduler(timezone="Europe/Moscow", jobstores=jobstores))
 
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dispatcher = Dispatcher(scheduler=scheduler, storage=storage)
-    scheduler.ctx.add_instance(instance=bot, declared_class=Bot)
+    dispatcher = Dispatcher() #scheduler=scheduler, storage=storage
+    # scheduler.ctx.add_instance(instance=bot, declared_class=Bot)
 
     dispatcher.message.middleware.register(MailChatActionMiddleware(router=dispatcher))
     TTLCacheAlbumMiddleware(router=dispatcher)
