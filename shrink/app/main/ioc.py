@@ -8,6 +8,7 @@ from app.main.config import DATABASE_URL
 
 from app.services import UserService, SettingsService, EmailService, AudioService, MailingService
 from app.data.dal import UserDAL, UserEmailDAL, UserAudioDAL, EmailSettingsDAL
+from app.bot.utils import Encryption
 
 
 class DatabaseProvider(Provider):
@@ -38,3 +39,4 @@ class ServiceProvider(Provider):
     email_service = provide(EmailService, scope=Scope.REQUEST, provides=EmailService)
     audio_service = provide(AudioService, scope=Scope.REQUEST, provides=AudioService)
     mailing_service = provide(MailingService, scope=Scope.REQUEST, provides=MailingService)
+    encryption = provide(Encryption, scope=Scope.REQUEST, provides=Encryption)

@@ -14,13 +14,13 @@ from app.services.audio_service import AudioService
 
 router=Router()
 
-premium_one_month = LabeledPrice(label='Subscribe', amount=1600*100)
-premium_three_months = LabeledPrice(label='Subscribe', amount=4000*100)
-premium_six_months = LabeledPrice(label='Subscribe', amount=7000*100)
+premium_one_month = LabeledPrice(label='Subscribe', amount=750)
+premium_three_months = LabeledPrice(label='Subscribe', amount=1500)
+premium_six_months = LabeledPrice(label='Subscribe', amount=2700)
 
-basic_one_month = LabeledPrice(label='Subscribe', amount=1000*100)
-basic_three_months = LabeledPrice(label='Subscribe', amount=3000*100)
-basic_six_months = LabeledPrice(label='Subscribe', amount=5000*100)
+basic_one_month = LabeledPrice(label='Subscribe', amount=400)
+basic_three_months = LabeledPrice(label='Subscribe', amount=1000)
+basic_six_months = LabeledPrice(label='Subscribe', amount=1800)
 
 
 @router.callback_query(F.data == "premium_1_sub")
@@ -30,8 +30,7 @@ async def order(query: CallbackQuery, bot: Bot):
         description='Подписка на месяц',
         title='Monthly Subscription',
         payload='Payment through a bot',
-        provider_token=PAYMASTER_TOKEN,
-        currency='rub',
+        currency='XTR',
         prices=[premium_one_month],
         start_parameter='pay',
         provider_data=None,
@@ -57,8 +56,7 @@ async def order(query: CallbackQuery, bot: Bot):
         description='Подписка на 3 месяца',
         title='Monthly Subscription',
         payload='Payment through a bot',
-        provider_token=PAYMASTER_TOKEN,
-        currency='rub', 
+        currency='XTR', 
         prices=[premium_three_months],
         start_parameter='pay',
         provider_data=None,
@@ -77,6 +75,7 @@ async def order(query: CallbackQuery, bot: Bot):
         request_timeout=15
     )
     
+
 @router.callback_query(F.data == "premium_6_sub")
 async def order(query: CallbackQuery, bot: Bot):
     await bot.send_invoice(
@@ -84,8 +83,7 @@ async def order(query: CallbackQuery, bot: Bot):
         description='Подписка на 6 месяцев',
         title='Monthly Subscription',
         payload='Payment through a bot',
-        provider_token=PAYMASTER_TOKEN,
-        currency='rub',
+        currency='XTR',
         prices=[premium_six_months],
         start_parameter='pay',
         provider_data=None,
@@ -111,8 +109,7 @@ async def order(query: CallbackQuery, bot: Bot):
         description='Подписка на месяц',
         title='Monthly Subscription',
         payload='Payment through a bot',
-        provider_token=PAYMASTER_TOKEN,
-        currency='rub',
+        currency='XTR',
         prices=[basic_one_month],
         start_parameter='pay',
         provider_data=None,
@@ -131,6 +128,7 @@ async def order(query: CallbackQuery, bot: Bot):
         request_timeout=15
     )
     
+
 @router.callback_query(F.data == "basic_3_sub")
 async def order(query: CallbackQuery, bot: Bot):
     await bot.send_invoice(
@@ -138,8 +136,7 @@ async def order(query: CallbackQuery, bot: Bot):
         description='Подписка на 3 месяца',
         title='Monthly Subscription',
         payload='Payment through a bot',
-        provider_token=PAYMASTER_TOKEN,
-        currency='rub',
+        currency='XTR',
         prices=[basic_three_months],
         start_parameter='pay',
         provider_data=None,
@@ -158,6 +155,7 @@ async def order(query: CallbackQuery, bot: Bot):
         request_timeout=15
     )
     
+
 @router.callback_query(F.data == "basic_6_sub")
 async def order(query: CallbackQuery, bot: Bot):
     await bot.send_invoice(
@@ -165,8 +163,7 @@ async def order(query: CallbackQuery, bot: Bot):
         description='Подписка на 6 месяцев',
         title='Monthly Subscription',
         payload='Payment through a bot',
-        provider_token=PAYMASTER_TOKEN,
-        currency='rub',
+        currency='XTR',
         prices=[basic_six_months],
         start_parameter='pay',
         provider_data=None,
@@ -188,21 +185,24 @@ async def order(query: CallbackQuery, bot: Bot):
     
 @router.pre_checkout_query(lambda query: True)
 @inject
-async def pre_checkout(pre_checkout: PreCheckoutQuery, bot: Bot,
-                       user_service: Annotated[UserService, Depends()], 
-                       settings_service: Annotated[SettingsService, Depends()], 
-                       mailing_service: Annotated[MailingService, Depends()], 
-                       email_service: Annotated[EmailService, Depends()],
-                       audio_service: Annotated[AudioService, Depends()]):
-    await bot.answer_pre_checkout_query(pre_checkout.id,ok=True)
+async def pre_checkout(
+    pre_checkout: PreCheckoutQuery, bot: Bot,
+    user_service: Annotated[UserService, Depends()], 
+    settings_service: Annotated[SettingsService, Depends()], 
+    mailing_service: Annotated[MailingService, Depends()], 
+    email_service: Annotated[EmailService, Depends()],
+    audio_service: Annotated[AudioService, Depends()]
+):
+    await bot.answer_pre_checkout_query(pre_checkout.id, ok=True)
     total_amount = pre_checkout.total_amount // 100
     user_id = pre_checkout.from_user.id
-    if total_amount in [1600, 4000, 7000]:
+
+    if total_amount in [600, 1500, 2700]:
         await user_service.update_user(
-                user_id=user_id,
-                subscription=UserSubscription.PREMIUM, 
-                email_limit = float('inf'), 
-                audio_limit = float('inf')
+            user_id=user_id,
+            subscription=UserSubscription.PREMIUM, 
+            email_limit = float('inf'), 
+            audio_limit = float('inf')
         )       
         unavailable_list = await email_service.get_user_emails(user_id, available_is = 0)
         
@@ -228,13 +228,13 @@ async def pre_checkout(pre_checkout: PreCheckoutQuery, bot: Bot,
             
     else:
         await user_service.update_user(
-                user_id=user_id,
-                subscription=UserSubscription.BASIC, 
-                email_limit = 1800, 
-                audio_limit = 200
-            ) 
+            user_id=user_id,
+            subscription=UserSubscription.BASIC, 
+            email_limit=1800, 
+            audio_limit=200
+        ) 
         
-        unavailable_list = await email_service.get_user_emails(user_id, available_is = 0)
+        unavailable_list = await email_service.get_user_emails(user_id, available_is=0)
         old_list = await email_service.get_user_emails(user_id, available_is=1)
         
         if unavailable_list and old_list:
@@ -251,11 +251,9 @@ async def pre_checkout(pre_checkout: PreCheckoutQuery, bot: Bot,
                     unavailable_list = unavailable_list[-len_without_limit:] 
                 else:
                     unavailable_list = []
-                print(unavailable_list)
                 combined_list = unavailable_list + old_list
             for email in combined_list:
                 await email_service.update_available_is(user_id, email, available_is=1)
-                
                 
     unavailable_audio_list = await audio_service.get_audio_list(user_id, available_is=0)
     available_audio_list = await audio_service.get_audio_list(user_id, available_is=1)
@@ -280,18 +278,15 @@ async def pre_checkout(pre_checkout: PreCheckoutQuery, bot: Bot,
             ]
         await audio_service.update_audio_list(audio_dicts)
        
-    await settings_service.update_email_limit_to_send(user_id=user_id, 
-                                                          count=450)
+    await settings_service.update_email_limit_to_send(user_id=user_id, count=450)
     await settings_service.update_settings(user_id, email_limit_to_send_for_extra = 50)
-    if total_amount == 1600 or total_amount == 1000:
-        await user_service.update_user(user_id=user_id, 
-                                       sub_duration = 30)
-    elif total_amount == 4000 or total_amount == 3000:
-        await user_service.update_user(user_id=user_id, 
-                                       sub_duration = 90)
+
+    if total_amount == 600 or total_amount == 400:
+        await user_service.update_user(user_id=user_id, sub_duration = 30)
+    elif total_amount == 1500 or total_amount == 1000:
+        await user_service.update_user(user_id=user_id, sub_duration = 90)
     else:
-        await user_service.update_user(user_id=user_id, 
-                                       sub_duration = 180)
+        await user_service.update_user(user_id=user_id, sub_duration = 180)
     await mailing_service.update_sub_duration(user_id=user_id, bot=bot)
     await mailing_service.update_email_limit_to_send_for_extra(user_id=user_id, bot=bot)
         

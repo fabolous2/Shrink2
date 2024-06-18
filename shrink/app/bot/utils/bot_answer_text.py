@@ -1,4 +1,6 @@
 import json
+from typing import Optional, Sequence
+
 from app.models import EmailSettings
 
 
@@ -44,8 +46,8 @@ def get_how_the_bot_works() -> str:
 def get_without_sub_info() -> str:
     return get_text_by_key("without_subscription_info")
 
-def get_user_audio_list() -> str:
-    return get_text_by_key("user_audio_list")
+def get_user_audio_list(audios_count: int) -> str:
+    return get_text_by_key("user_audio_list").format(audios_count)
 
 
 def get_basic_sub_info(sub_duration: int) -> str:
@@ -176,8 +178,8 @@ def get_successfull_logout() -> str:
     return get_text_by_key("successfull_logout_text")
 
 
-def get_user_email_addresses(email_list: str) -> str:
-    return get_text_by_key("user_email_addresses_text").format(email_list)
+def get_user_email_addresses(email_list: str, email_count: int) -> str:
+    return get_text_by_key("user_email_addresses_text").format(email_list, email_count)
 
 def get_call_support() -> str:
     return get_text_by_key("call_support")      
@@ -228,11 +230,11 @@ def get_sub_choice() -> str:
     return get_text_by_key('sub_choice')
 
 
-
-def get_extra_menu(subject: str, description: str) -> str:
+def get_extra_menu(subject: Optional[str], description: Optional[str], recipients: str) -> str:
     subject = f"<blockquote>{subject}</blockquote>" if subject else f'<u>None</u>'
     description = f"<blockquote>{description}</blockquote>" if description else f'<u>None</u>'
-    return get_text_by_key('extra_menu').format(subject, description)
+    return get_text_by_key('extra_menu').format(subject, description, recipients)
+
 
 def get_main_menu_text() -> str:
     return get_text_by_key('main_menu_text')

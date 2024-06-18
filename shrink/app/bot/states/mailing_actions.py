@@ -5,3 +5,5 @@ class SelfMailingStatesGroup(StatesGroup):
     WAIT_FOR_TEXT = State()
     WAIT_FOR_EMAILS = State()
     WAIT_FOR_AUDIOS = State()
+    EXTRA_PAGE = State()
+    AUDIO_DELETION = State()

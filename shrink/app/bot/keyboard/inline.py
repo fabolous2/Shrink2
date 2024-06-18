@@ -11,24 +11,41 @@ def create_inline_keyboard(*rows: list[InlineKeyboardButton]) -> InlineKeyboardM
 # Определение кнопок
 
 
-back_button = create_inline_button('⬅ Назад', 'main_menu')
+def del_audio_button(unique_id: int) -> InlineKeyboardMarkup:
+    button = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='🗑️ Удалить', callback_data=f'delete_audio_extra:{unique_id}'),
+                InlineKeyboardButton(text='⬅️ Назад', callback_data='back_to_extra_page')
+            ]
+        ]
+    )
+    return button
 
+ok_kb_markup = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="ОK", callback_data="ok")
+        ]
+    ]
+)
+
+
+back_button = create_inline_button('⬅ Назад', 'main_menu')
 
 registration_button = create_inline_button('📇 Регистрация', 'registration')
 repeat_registration_button = create_inline_button('📇 Повторная регистрация', 'repeat_registration')
-how_works_be_twin_button = create_inline_button('📖 Как работает Be Twin', 'how_works_be_twin',
-                                                url="https://telegra.ph/Logistika-i-eyo-sekrety-09-24")
+how_works_be_twin_button = create_inline_button('📖 Как работает Be Twin', 'how_works_be_twin', url="https://telegra.ph/Logistika-i-eyo-sekrety-09-24")
 
 subscription_button = create_inline_button('🎟 Подписка', 'subscription')
-more_about_subscription_button = create_inline_button('🗒️ Подробнее о подписках', 'more_about_subscription',
-                                                      url='https://telegra.ph/Podpiska-na-Be-Twin-02-09')
+more_about_subscription_button = create_inline_button('🗒️ Подробнее о подписках', 'more_about_subscription', url='https://telegra.ph/Podpiska-na-Be-Twin-02-09')
 
 more_about_subscription_button_in_profile = create_inline_button('🗒️ О подписках', 'more_about_subscription',
                                                       url='https://telegra.ph/Podpiska-na-Be-Twin-02-09')
 cancel_subscription_button = create_inline_button('📉 Отменить подписку', 'sub_cancel')
 have_questions_button = create_inline_button('📝 Остались вопросы?', 'have_questions', url='https://t.me/urtwin6')
 
-extra_mailing_type_button = create_inline_button('EXTRA', 'self_mailing')
+extra_mailing_type_button = create_inline_button('EХTRA', 'self_mailing')
 auto_mailing_type_button = create_inline_button('AUTO', 'auto_mailing')
 
 seven_pm_button = create_inline_button("19:00", "seven_pm")
@@ -43,9 +60,12 @@ three_audio_amount = create_inline_button("3", "three_audio_amount")
 four_audio_amount = create_inline_button("4", "four_audio_amount")
 five_audio_amount = create_inline_button("5", "five_audio_amount")
 
-
-add_beats_to_state = create_inline_button('🎹 Добавить биты', "add_to_db")
+def add_beats_to_state(times: int) -> InlineKeyboardButton:
+    kb = InlineKeyboardButton(text='🎹 Добавить биты', callback_data=f"add_to_db:{times}")
+    return kb
+add_beats_to_state_an = create_inline_button('🎹 Добавить биты', "add_to_db")
 send_from_state = create_inline_button("📮 Отправить", "send_from_db")
+delete_audio_state = create_inline_button("🗑️ Удалить биты", "del_audio_from_db")
 
 
 one_day_frequency = create_inline_button("ежедневно", "one_day_frequency")
@@ -213,7 +233,7 @@ view_email_list_kb_markup = create_inline_keyboard([view_current_email_list])
 view_audio_list_kb_markup = create_inline_keyboard([view_current_audio_list])
 view_audio_list_from_extra_kb_markup = create_inline_keyboard([view_current_audio_list_from_extra])
 
-send_from_db_markup = create_inline_keyboard([add_beats_to_state, send_from_state])
+send_from_db_markup = create_inline_keyboard([add_beats_to_state_an, send_from_state])
 
 change_sub_to_prem_kb_markup = create_inline_keyboard([change_sub_to_basic], [back_to_sub_menu])
 change_sub_to_basic_kb_markup = create_inline_keyboard([change_sub_to_prem], [back_to_sub_menu])

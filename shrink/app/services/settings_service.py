@@ -110,17 +110,14 @@ class SettingsService:
         self.scheduler.start()
         
     async def update_last_update_frequency(self, user_id: int):
-        await self.settings_dal.update(user_id=user_id, current_frequency = 1)
-        
-    
+        await self.settings_dal.update(user_id=user_id, current_frequency=1)        
         
     async def update_email_limit_to_send(self, user_id: int, count: int):
-        await self.settings_dal.update(user_id=user_id, email_limit_to_send = count)
-            
+        await self.settings_dal.update(user_id=user_id, email_limit_to_send=count)
 
     async def set_amount(self, user_id: int, amount: int) -> None:
-        audio_list = await self.audio_dal.get_all(user_id=user_id, available_is_for_audio = 1, is_extra = 0)
-        email_list = await self.email_dal.get_all(user_id=user_id, available_is = 1)
+        audio_list = await self.audio_dal.get_all(user_id=user_id, available_is_for_audio=1, is_extra=0)
+        email_list = await self.email_dal.get_all(user_id=user_id, available_is=1)
         old_amount = await self.get_amount(user_id=user_id)
         
         

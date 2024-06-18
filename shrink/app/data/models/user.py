@@ -8,8 +8,9 @@ class User(Base):
     __tablename__ = "user"
 
     user_id = Column("user_id", Integer, unique=True, primary_key=True)  
-    personal_email = Column('personal_email', String)
-    password = Column("password", String)
+    personal_email = Column('personal_email', String, nullable=True)
+    password = Column("password", String, nullable=True)
+    secret = Column("secret", String, nullable=True)
     email_limit = Column("email_limit", Integer, default=200)
     audio_limit = Column('audio_limit', Integer, default=20)
     subscription = Column("subscription", Enum(UserSubscription), default=UserSubscription.NOT_SUBSCRIBED)

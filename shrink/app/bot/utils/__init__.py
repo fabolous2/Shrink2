@@ -36,9 +36,11 @@ from .bot_answer_text import (
     get_invalid_audio_format
 )
 from .email import parse_emails
+from .encryption import Encryption
 
 
 __all__ = [
+    "Encryption",
     "get_greeting",
     "get_support_answer",
     "get_not_registered",

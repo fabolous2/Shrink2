@@ -1,6 +1,0 @@
-{
-    "files.exclude": {
-        "**/old_shrink": false,
-        "**/__pycache__": true,
-    },
-}

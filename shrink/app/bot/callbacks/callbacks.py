@@ -154,10 +154,10 @@ async def get_user_profile_info(
 
 
 #! Cancel
-@router.callback_query(F.data == "cancel")
+@router.callback_query(F.data.in_(["cancel", "ok"]))
 async def cancel_call(query: CallbackQuery, bot: Bot) -> None:
     await bot.delete_message(
-        chat_id=query.chat_instance,
+        chat_id=query.message.chat.id,
         message_id=query.message.message_id,
     )
 

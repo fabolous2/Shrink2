@@ -1,11 +1,15 @@
+from cgitb import text
 import re
 from typing import Annotated
+import html
 
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, ContentType
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.media_group import MediaGroupBuilder
+
+from aiogram_album import AlbumMessage
 
 from dishka.integrations.aiogram import inject, Depends
 from app.models import User, EmailSettings as Settings
@@ -41,6 +45,7 @@ from app.bot.states import (
 )
 from app.bot.keyboard import inline
 from app.bot.keyboard import reply
+from app.bot.utils import Encryption
 
 
 commands_router = Router(name=__name__)
@@ -120,7 +125,8 @@ async def support_handler(message: Message, state: FSMContext) -> None:
 @commands_router.message(Command("mailing"))
 @inject
 async def mailing_type_handler(
-    message: Message, user_service: Annotated[UserService, Depends()]
+    message: Message,
+    user_service: Annotated[UserService, Depends()]
 ) -> None:
     user_id = message.from_user.id
     email_and_password_is_filled = await user_service.user_is_registered(user_id)      
@@ -140,7 +146,8 @@ async def mailing_type_handler(
 
     else:
         await message.answer(
-            get_not_registered(), reply_markup=inline.registration_mailing_kb_markup
+            get_not_registered(),
+            reply_markup=inline.registration_mailing_kb_markup
         )
 
 
@@ -152,17 +159,21 @@ async def set_subject_invalid_content(message: Message) -> None:
 
 @commands_router.message(EmailContentStatesGroup.WAIT_FOR_SUBJECT, F.content_type == ContentType.TEXT)
 @inject
-async def set_subject(message: Message, state: FSMContext,
-                      settings_service: Annotated[SettingsService, Depends()], 
-                      bot: Bot) -> None:
+async def set_subject(
+    message: Message,
+    state: FSMContext,
+    settings_service: Annotated[SettingsService, Depends()], 
+    bot: Bot
+) -> None:
     await state.clear()
     text = message.text 
     description = await settings_service.get_user_mail_text(message.from_user.id)
     if description:
-        total_len = len(text)+len(description)
+        total_len = len(text) + len(description)
     else:
         total_len = len(text)
-        
+    
+    print(total_len)
     if total_len < 3500:
         try:
             await settings_service.update_settings(
@@ -171,13 +182,12 @@ async def set_subject(message: Message, state: FSMContext,
             )
             last_message_id = message.message_id - 1
             await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
-            await message.answer(get_successful_update_message_text(), 
-                                reply_markup=inline.back_from_update_message_kb_markup)
-
-        except Exception:
             await message.answer(
-                get_call_support()
+                get_successful_update_message_text(),
+                reply_markup=inline.back_from_update_message_kb_markup
             )
+        except Exception:
+            await message.answer(get_call_support())
     else:
         await message.answer("Ваш загловок письма и текст в сумме не должны превышать 3500 символов!")
         
@@ -200,15 +210,15 @@ async def set_description(
     text = message.text 
     subject = await settings_service.get_user_mail_subject(message.from_user.id)
     if subject:
-        total_len = len(text)+len(subject)
+        total_len = len(text) + len(subject)
     else:
         total_len = len(text)
-        
+    print(total_len)
     if total_len < 3500:
         try:
             await settings_service.update_settings(
                 user_id=message.from_user.id,
-                email_text=message.text,
+                email_text=text,
             )
             last_message_id = message.message_id - 1
             await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
@@ -220,6 +230,7 @@ async def set_description(
     else:
         await message.answer("Ваш загловок письма и текст в сумме не должны превышать 3500 символов!")
 
+
 @commands_router.message(EmailQuantityStatesGroup.WAIT_FOR_QUANTITY)
 @inject
 async def set_quantity(
@@ -230,8 +241,7 @@ async def set_quantity(
     amount = message.text
     user_id = message.from_user.id
 
-    int(amount)
-    await settings_service.set_amount(user_id=user_id, amount=amount)
+    await settings_service.set_amount(user_id=user_id, amount=int(amount))
     await message.answer(get_successful_update_value())
     await state.clear()
 
@@ -250,10 +260,9 @@ async def handle_audio(
     email_from_db = await email_service.get_user_email_list(user_id)
     email_limit = await user_service.get_email_limit(user_id)
     
-    
-    text = message.text.lower()
+    unfiltered_emails = message.text.replace(',', ' ').replace('\n', ' ').replace(' ', '\n')
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    emails = re.findall(email_pattern, text)
+    emails = re.findall(email_pattern, unfiltered_emails.lower())
     emails = list(set(emails))
     count = 0
     last_message_id = message.message_id - 1
@@ -262,39 +271,58 @@ async def handle_audio(
     if email_from_db:
         email_from_db = email_from_db.split('\n')
     if not emails:
-        await message.answer("Упс... Что-то пошло не так. Возможно почты введены неверно")
-        
+        await message.answer(
+            f"✅ Вы успешно добавили почты (0)",
+            reply_markup=inline.view_email_list_kb_markup
+        )   
+        await message.answer(
+            text=f"❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{html.escape('\n'.join(unfiltered_emails.split()))}",
+            reply_markup=inline.ok_kb_markup
+        )
     else:   
+        emails = list(filter(lambda email: email not in email_from_db, emails))
         if len(email_from_db) + len(emails) > email_limit:
-            await message.answer(get_limit_email_list(email_limit, len(email_from_db)))
-        
-        else:
-            emails_list = []
-            if email_from_db:
-                for email in emails:
-                    count = 0
-                    for email_db in email_from_db:
-                        if email_db != email:
-                            count += 1
-      
-                    if count == len(email_from_db):        
-                        email_dict = {"user_id": user_id, "email_address": email}
-                        emails_list.append(email_dict)
-                            
+            left = email_limit - len(email_from_db)
+            if left <= 0:
+                await message.answer(get_limit_email_list(email_limit, len(email_from_db)))
+                return
             else:
-                for email in emails:
+                emails = emails[:left]
+    
+        emails_list = []
+        if email_from_db:
+            for email in emails:
+                count = 0
+                for email_db in email_from_db:
+                    if email_db != email:
+                        count += 1
+
+                if count == len(email_from_db):        
                     email_dict = {"user_id": user_id, "email_address": email}
-                    emails_list.append(email_dict)
-                
-            try:
-                await email_service.update_email_list(emails_list)
+                    emails_list.append(email_dict)           
+        else:
+            for email in emails:
+                email_dict = {"user_id": user_id, "email_address": email}
+                emails_list.append(email_dict)
+        formatted_email_list = [email['email_address'] for email in emails_list]
+        invalid_emails = list(filter(lambda email: email.lower() not in formatted_email_list and email != '', unfiltered_emails.split('\n')))   
+        try:
+            await email_service.update_email_list(emails_list)
+            await message.answer(
+                f"✅ Вы успешно добавили почты ({len(emails_list)})",
+                reply_markup=inline.view_email_list_kb_markup
+            )
+            print(invalid_emails)
+            print(len(invalid_emails))
+            if invalid_emails:
                 await message.answer(
-                    f"✅ Вы успешно добавили почты ({len(emails_list)})",
-                    reply_markup=inline.view_email_list_kb_markup)
-                
-            except Exception:
-                await message.answer("Упс... Что-то пошло не так. Возможно почты введены неверно")
-        
+                    text=f"❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{html.escape('\n'.join(invalid_emails))}",
+                    reply_markup=inline.ok_kb_markup
+                )
+        except Exception as _ex:
+            print(_ex)
+            await message.answer("❗️Что-то пошло не так. Обратитесь в поддержку")
+
 
 @commands_router.message(Command("email_list"))
 @inject
@@ -342,30 +370,24 @@ async def email_del(
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     emails = re.findall(email_pattern, text)
     
-    if not emails:
-        await message.answer("Упс... Что-то пошло не так. Возможно почты введены неверно")
-        
-    else:
+    if emails:
         for email in emails:
-            email_id = await email_service.get_last_sent_by_email(user_id=user_id, 
-                                                                  email=email)
+            email_id = await email_service.get_last_sent_by_email(user_id=user_id, email=email)
             if email_id == 1:
                 list_to_send = await email_service.get_user_emails(user_id=user_id)          
                 email_index  = list_to_send.index(email)
                 if emails[-1] == list_to_send[-1]:
-                    await email_service.update_last_sent_index(user_id,       
-                                                           list_to_send[0], 1)
+                    await email_service.update_last_sent_index(user_id, list_to_send[0], 1)
                 else:
-                    await email_service.update_last_sent_index(user_id,       
-                                                           list_to_send[email_index + len(emails) - (email_index - len(list_to_send[:email_index]))], 1)
-            
+                    await email_service.update_last_sent_index(user_id, list_to_send[email_index + len(emails) - (email_index - len(list_to_send[:email_index]))], 1)
         
         emails_to_del_list = [{"user_id": user_id, "to": email} for email in emails]
         to_list = [email['to'] for email in emails_to_del_list]
-        
-        deleted_count = await email_service.get_count_matching_emails(user_id ,to_list)
+        deleted_count = await email_service.get_count_matching_emails(user_id, to_list)
 
         try:
+            print(emails_to_del_list)
+            print(to_list)
             await email_service.delete_emails_by_address(to_list)
             last_message_id = message.message_id - 1
             await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
@@ -373,9 +395,14 @@ async def email_del(
                 f"✅ Вы успешно избавились от почт ({deleted_count})", 
                 reply_markup=inline.view_email_list_kb_markup
         )
-        except Exception:
-            await message.answer("Упс... Что-то пошло не так. Возможно почты введены неверно")
-            
+        except Exception as _ex:
+            await message.answer('❗️Что-то пошло не так. Обратитесь в поддержку!')
+            print(_ex)
+    else:
+        await message.answer(
+                f"✅ Вы успешно избавились от почт (0)", 
+                reply_markup=inline.view_email_list_kb_markup
+        )
                 
 @commands_router.message(Command("audio_list"))
 @inject                                                                                                                                 
@@ -439,8 +466,7 @@ async def get_wrong_for_text_for_mailing(message: Message) -> None:
 
 @commands_router.callback_query(F.data == 'without_desc_for_extra')
 @commands_router.message(SelfMailingStatesGroup.WAIT_FOR_TEXT, F.content_type == ContentType.TEXT)
-async def get_text_for_mailing(message: Message, state: FSMContext, 
-                                  bot: Bot) -> None:
+async def get_text_for_mailing(message: Message, state: FSMContext, bot: Bot) -> None:
     if isinstance(message, CallbackQuery): 
         await state.update_data(desc=None)
         await message.message.delete()
@@ -449,28 +475,32 @@ async def get_text_for_mailing(message: Message, state: FSMContext,
         await state.update_data(desc=text)
         last_message_id = message.message_id - 1
         await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
-    await bot.send_message(chat_id=message.from_user.id,
-                           text=get_wait_email_addresses_text())
+    await bot.send_message(chat_id=message.from_user.id, text=get_wait_email_addresses_text())
     await state.set_state(SelfMailingStatesGroup.WAIT_FOR_EMAILS)
 
 
 @commands_router.message(SelfMailingStatesGroup.WAIT_FOR_EMAILS)
-async def get_audio_for_mailing(message: Message, state: FSMContext, 
-                                bot: Bot) -> None: 
-    text = message.text
+async def get_audio_for_mailing(message: Message, state: FSMContext, bot: Bot) -> None: 
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    emails = re.findall(email_pattern, text)
+    unfiltered_emails = message.text.replace(' ', '').replace(',', '\n')
+    emails = re.findall(email_pattern, unfiltered_emails.lower())
     if not emails:
         await message.answer(text="❗️Что-то пошло не так. Возможно вы неверно ввели почты получателей.")
     else:
         last_message_id = message.message_id - 1
         await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
-        await state.update_data(emails_for_extra=message.text.replace(' ', '').replace(',', '\n'))
+        emails = '\n'.join(set(emails))
+        invalid_emails = list(filter(lambda email: email not in emails, unfiltered_emails.split('\n')))
+        print(invalid_emails)
+        print(unfiltered_emails)
+
+        await state.update_data(emails_for_extra=emails, invalid_emails=invalid_emails, first_time=True)
         await message.answer("🎵 Отправьте биты")
         await state.set_state(SelfMailingStatesGroup.WAIT_FOR_AUDIOS)
-
+ 
 
 @commands_router.message(Command('test'))
 @inject
-async def test_bot(message: Message, service: Annotated[MailingService, Depends()]) -> None:
-    await service.test(user_id=message.from_user.id)
+async def test_bot(message: Message, encryption: Annotated[Encryption, Depends()], user_service: Annotated[UserService, Depends()]) -> None:
+    user = await user_service.get_user(user_id=message.from_user.id)
+    await message.answer(f"Your password - {encryption.decrypt(user.password, user.secret)}")

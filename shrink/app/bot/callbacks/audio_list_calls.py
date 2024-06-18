@@ -1,6 +1,7 @@
 import hashlib
 from typing import Annotated
 from aiogram_album import AlbumMessage
+import html
 
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
@@ -20,7 +21,7 @@ from app.bot.utils.bot_answer_text import (
 )
 from app.bot.states import AddAudiosStatesGroup, DelAudioStatesGroup
 
-from app.bot.keyboard import inline
+from app.bot.keyboard import inline, builder
 from app.services import AudioService
 
 from app.bot.handlers.commands import delete_messages
@@ -56,12 +57,12 @@ async def show_audio_page(message, audio_list, current_page, page_count, query=N
 
     if query:  
         await query.message.edit_text(
-            get_user_audio_list(),
+            get_user_audio_list(audios_count=len(audio_list)),
             reply_markup=keyboard
         )
     else:  
         await message.edit_text(
-            get_user_audio_list(),
+            get_user_audio_list(audios_count=len(audio_list)),
             reply_markup=keyboard
         )
 
@@ -72,7 +73,6 @@ async def add_audio_call_to_db(
     query: CallbackQuery,
     state: FSMContext,
     audio_service: Annotated[AudioService, Depends()],
-    is_extra: int = 0
 ) -> None:
     user_id = query.from_user.id
     audio_list = await audio_service.get_audio_list(user_id, is_extra=0)
@@ -143,9 +143,22 @@ def find_file_id_by_unique_id(audio_list, unique_id):
     
 
 @router.callback_query(F.data == "add_audio_to_db")
-async def add_audio_call_to_db(query: CallbackQuery, state: FSMContext): 
-    await query.message.edit_text(get_add_audio_text())
-    await state.set_state(AddAudiosStatesGroup.WAIT_FOR_AUDIOS)
+@inject
+async def add_audio_call_to_db(
+    query: CallbackQuery,
+    state: FSMContext,
+    audio_service: Annotated[AudioService, Depends()], 
+    user_service: Annotated[UserService, Depends()]
+) -> None: 
+    user_id = query.from_user.id
+    audios = await audio_service.get_audio_list(user_id=user_id)
+    audio_limit = await user_service.get_audio_limit(user_id=user_id)
+
+    if audios and len(audios) == audio_limit:
+        await query.answer(f"❗Достигнут лимит {audio_limit}/{audio_limit} аудио", show_alert=True)
+    else:
+        await query.message.edit_text(get_add_audio_text())
+        await state.set_state(AddAudiosStatesGroup.WAIT_FOR_AUDIOS)
 
 
 @router.message(AddAudiosStatesGroup.WAIT_FOR_AUDIOS, F.media_group_id)
@@ -157,37 +170,59 @@ async def audio_handler(
     user_service: Annotated[UserService, Depends()]
 ) -> None:
     user_id = album_message.from_user.id
+    audio_names = [message.audio.file_name for message in album_message]
     audio_list = await audio_service.create_audio_list(user_id=user_id, album_message=album_message)
     audio_list_from_db = await audio_service.get_audio_list(user_id, is_extra=0)
     audio_limit = await user_service.get_audio_limit(user_id=user_id)
-    
-    if len(audio_list) + len(audio_list_from_db) > audio_limit:
-        await album_message.answer(get_limit_audio_list(audio_limit, len(audio_list_from_db)))
-        await state.clear()
-    
-    else:
+    print(audio_names)
+    print(audio_list)
+    if audio_list_from_db:
         try:
             unique_audio_set = set()  
             unique_auto_audio_list = []  
-            
             for audio in audio_list_from_db:
                 if audio.name not in unique_audio_set:
                     unique_audio_set.add(audio.name)
                     unique_auto_audio_list.append({'file_id': audio.file_id, 'audio_title': audio.name})
 
-            unique_audio_list_names = [audio['audio_title'] for audio in unique_auto_audio_list]
-            
+            unique_audio_list_names = [audio['audio_title'] for audio in unique_auto_audio_list] 
             final_list = []
             for audio in audio_list:
                 if audio['audio_name'] not in unique_audio_list_names:
                     final_list.append(audio)
 
+            if len(final_list) + len(audio_list_from_db) > audio_limit:
+                left = audio_limit - len(audio_list_from_db)
+                final_list = final_list[:left]
+
+            final_list_names = [audio['audio_name'] for audio in final_list]
+            invalid_audio_names = list(filter(lambda name: name not in final_list_names, audio_names))
+            print(final_list_names)
             await audio_service.add_audio(final_list)
-            await album_message.answer(get_add_audio(len(final_list)),
-                                    reply_markup=inline.view_audio_list_kb_markup)        
+            await album_message.answer(get_add_audio(len(final_list)), reply_markup=inline.view_audio_list_kb_markup)      
+            if invalid_audio_names:
+                callback_datas = ["none_lol"] * len(invalid_audio_names)
+                callback_datas.append("ok")
+                invalid_audio_names.append("OK")
+                await album_message.answer("❗️НЕ БЫЛИ ДОБАВЛЕНЫ:", reply_markup=builder.inline_builder(
+                            text=invalid_audio_names,
+                            callback_data=callback_datas,
+                            sizes=1
+                        ))  
+        except Exception as _ex:
+            print(_ex)
+            await album_message.answer("❗️Что-то пошло не так. Обратитесь в поддержку")
+        finally:
+            await state.clear()
+    else:
+        print('audio_db_0')
+        try:
+            await audio_service.add_audio(audio_list)
+            await album_message.answer(get_add_audio(len(audio_list)), reply_markup=inline.view_audio_list_kb_markup)        
         except Exception as _ex:
             print(_ex)
             await album_message.answer(get_call_support())
+        finally:
             await state.clear()
 
 
@@ -201,11 +236,9 @@ async def get_one_audio(
     bot: Bot
 ) -> None:
     user_id = audio_message.from_user.id
-    
     index = await audio_service.generate_index_service(user_id=audio_message.from_user.id)
     audio_list_from_db = await audio_service.get_audio_list(user_id, is_extra=0)
     audio_limit = await user_service.get_audio_limit(user_id=user_id)
-    filename = audio_message.audio.file_name
     
     audio_list = {
         'audio_id': audio_message.audio.file_id,
@@ -214,55 +247,79 @@ async def get_one_audio(
         'user_id': audio_message.from_user.id,
         'audio_index': index[0]
     }
-    print()
-    if len(audio_list_from_db) + 1 > audio_limit:
-        await audio_message.answer(get_limit_audio_list(audio_limit, len(audio_list_from_db)))
-        await state.clear()
-    elif audio_message.audio.mime_type != 'audio/mpeg':
-        await audio_message.answer(get_invalid_audio_format())
+
+    if audio_list_from_db:
+        if len(audio_list_from_db) + 1 > audio_limit:
+            await audio_message.answer(get_limit_audio_list(audio_limit, len(audio_list_from_db)))
+            await state.clear()
+        elif audio_message.audio.mime_type != 'audio/mpeg':
+            await audio_message.answer(get_invalid_audio_format())
+        else:
+            try:
+                last_message_id = audio_message.message_id - 1
+                await delete_messages(audio_message.chat.id, [last_message_id, audio_message.message_id], bot)
+                audio_names_from_db = [audio.name for audio in audio_list_from_db]
+
+                if audio_list['audio_name'] not in audio_names_from_db:
+                    await audio_service.add_audio(audio_list)
+                    await audio_message.answer(get_add_audio(1), reply_markup=inline.view_audio_list_kb_markup)
+                else:
+                    await audio_message.answer(get_add_audio(0), reply_markup=inline.view_audio_list_kb_markup)
+                    await audio_message.answer("❗НЕ БЫЛО ДОБАВЛЕНО", reply_markup=builder.inline_builder(
+                        text=[f"{audio_message.audio.file_name}", "OK"],
+                        callback_data=["none_lol", "ok"],
+                        sizes=1
+                    ))
+            except Exception as _ex:
+                print(_ex)
+                await audio_message.answer("❗️Что-то пошло не так. Обратитесь в поддержку")
+            finally:
+                await state.clear()
     else:
         try:
             last_message_id = audio_message.message_id - 1
             await delete_messages(audio_message.chat.id, [last_message_id, audio_message.message_id], bot)
-            audio_names_from_db = [audio.name for audio in audio_list_from_db]
 
-            if audio_list['audio_name'] not in audio_names_from_db:
-                await audio_service.add_audio(audio_list)
-                await audio_message.answer(get_add_audio(1), reply_markup=inline.view_audio_list_kb_markup)
-            else:
-                await audio_message.answer(get_add_audio(0), reply_markup=inline.view_audio_list_kb_markup)
+            await audio_service.add_audio(audio_list)
+            await audio_message.answer(get_add_audio(1), reply_markup=inline.view_audio_list_kb_markup)
         except Exception as _ex:
             print(_ex)
             await audio_message.answer(get_call_support())
         finally:
             await state.clear()
 
-
 @router.message(AddAudiosStatesGroup.WAIT_FOR_AUDIOS, ~F.content_type.in_({'audio','media_group_id'}))
-async def cancel_update_audio(message: Message):
+async def cancel_update_audio(message: Message) -> None:
     await message.answer(get_invalid_audio_format())
 
 
 @router.callback_query(F.data == "del_audio")
-async def del_audio_call(query: CallbackQuery, state: FSMContext, 
-                         bot: Bot) -> None:
+async def del_audio_call(query: CallbackQuery, state: FSMContext) -> None:
     await query.message.edit_text((get_del_audio_text()))
     await state.set_state(DelAudioStatesGroup.WAIT_FOR_AUDIOS_TO_DEL)
     
     
 @router.message(DelAudioStatesGroup.WAIT_FOR_AUDIOS_TO_DEL, F.content_type == ContentType.AUDIO)
 @inject
-async def del_singleaudio_call(message: Message, state: FSMContext, 
-                         audio_service: Annotated[AudioService, Depends()], 
-                         bot: Bot):
+async def del_singleaudio_call(
+    message: Message,
+    state: FSMContext,
+    audio_service: Annotated[AudioService, Depends()],
+    bot: Bot
+) -> None:
     audio = message.audio
-
+    user_id = message.from_user.id
+    audio_list_from_db = await audio_service.get_audio_list(user_id, is_extra=0)
+    user_audio_names = [audio.name for audio in audio_list_from_db]
+    
     if audio:
-        last_message_id = message.message_id - 1
-        await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
-        await audio_service.delete_audio(user_id=message.from_user.id, filename=audio.file_name, size=audio.file_size)
-        await message.answer(get_del_audio(1), 
-                             reply_markup=inline.view_audio_list_kb_markup)
+        if audio.file_name in user_audio_names:
+            last_message_id = message.message_id - 1
+            await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)
+            await audio_service.delete_audio(user_id=message.from_user.id, filename=audio.file_name, size=audio.file_size)
+            await message.answer(get_del_audio(1), reply_markup=inline.view_audio_list_kb_markup)
+        else:
+            await message.answer(get_del_audio(0), reply_markup=inline.view_audio_list_kb_markup)
     else:
         await message.answer("Вы не отправили аудиофайл для удаления.")
     await state.clear()    
@@ -276,10 +333,18 @@ async def delete_audio_handler(
     audio_service: Annotated[AudioService, Depends()]
 ) -> None:
     user_id = album_message.from_user.id
-    audio_list = await audio_service.create_audio_list(user_id=user_id, album_message=album_message)
+    audio_list = await audio_service.create_audio_list_deletion(user_id=user_id, album_message=album_message)
+    
+    audio_list_from_db = await audio_service.get_audio_list(user_id, is_extra=0)
+    if audio_list_from_db:
+        user_audio_names = [audio.name for audio in audio_list_from_db]
+        audio_list = [
+            dictionary
+            for dictionary in audio_list
+            if dictionary['audio_name'] in user_audio_names
+        ]
     await audio_service.delete_audio_list(user_id, audio_list)
-    await album_message.answer(get_del_audio(len(audio_list)), 
-                             reply_markup=inline.view_audio_list_kb_markup)
+    await album_message.answer(get_del_audio(len(audio_list)), reply_markup=inline.view_audio_list_kb_markup)
     await state.clear()  
     
     
@@ -304,7 +369,7 @@ async def get_audio_list_call(
                 media_group.add_audio(media=audio)
                 for audio in audio_chunk
             ]
-            await bot.send_media_group(user_id,media_group.build())
+            await bot.send_media_group(user_id, media_group.build())
 
         await query.answer("Можете выбрать действие ниже", reply_markup=inline.choose_audio_actions_kb_markup)
 

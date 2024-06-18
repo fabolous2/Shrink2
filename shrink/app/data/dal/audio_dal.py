@@ -31,15 +31,7 @@ class UserAudioDAL:
         
         
     async def delete(self, **kwargs) -> None:
-        # Построение списка условий для WHERE
-        conditions = [
-            getattr(AudioFile, key) == value
-            for key, value in kwargs.items()
-            if hasattr(AudioFile, key)
-        ]
-        
-        # Собираем все условия с использованием and_()
-        query = delete(AudioFile).where(and_(*conditions))
+        query = delete(AudioFile).filter_by(**kwargs)
 
         await self.session.execute(query)
         await self.session.commit()
@@ -125,6 +117,7 @@ class UserAudioDAL:
             return 0, 0
         
         last_index = await self.get_last_index(user_id=user_id)
+        print(last_index)
         query = select(func.count(AudioFile.audio_index)).where(
             and_(
                 AudioFile.user_id == user_id,
@@ -133,7 +126,7 @@ class UserAudioDAL:
         )
         result = await self.session.execute(query)
         result = result.scalar_one()
-
+        
         if result == amount:
             return last_index + 1, 0
         
@@ -216,11 +209,15 @@ class UserAudioDAL:
         
     
     async def delete_extra_audios(self, user_id: int) -> None:
-        query = delete(AudioFile).where(
-                    and_(
-                        AudioFile.user_id == user_id,
-                        AudioFile.is_extra == 1
-                )
-        )
-        await self.session.execute(query)
-        await self.session.commit()
+        exists = await self.exists(user_id=user_id, is_extra=1)
+
+        if exists:
+            query = delete(AudioFile).where(
+                        and_(
+                            AudioFile.user_id == user_id,
+                            AudioFile.is_extra == 1
+                    )
+            )
+            await self.session.execute(query)
+            await self.session.commit()
+            

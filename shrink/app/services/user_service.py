@@ -9,20 +9,27 @@ from app.models.user import UserSubscription
 from app.data.dal import UserEmailDAL, UserAudioDAL
 from app.services.audio_service import AudioService
 from app.services.email_service import EmailService
+from app.bot.utils import Encryption
 
 
 class UserService:
-    def __init__(self, user_dal: UserDAL, settings_dal: EmailSettingsDAL,
-                 audio_service: AudioService,
-                email_service: EmailService,
-                email_dal: UserEmailDAL,
-                audio_dal: UserAudioDAL) -> None:
+    def __init__(
+        self,
+        user_dal: UserDAL,
+        settings_dal: EmailSettingsDAL,
+        audio_service: AudioService,
+        email_service: EmailService,
+        email_dal: UserEmailDAL,
+        audio_dal: UserAudioDAL,
+        encryption: Encryption
+    ) -> None:
         self.user_dal = user_dal
         self.settings_dal = settings_dal
         self.audio_service = audio_service
         self.email_service = email_service
         self.email_dal = email_dal
         self.audio_dal = audio_dal
+        self._encryption = encryption
 
     async def exists(self, user_id):
         return await self.user_dal.exists(user_id=user_id)
@@ -32,7 +39,6 @@ class UserService:
 
         if not exists:
             await self.user_dal.add(user)
-            
             
     async def get_all_user_ids(self):
         return await self.user_dal.get_all_user_ids()
@@ -46,10 +52,11 @@ class UserService:
         
     async def get_sub_duration(self, user_id: int):
         user = await self.user_dal.get_one(user_id=user_id)
-        if hasattr(user, 'sub_duration'):
-            return user.sub_duration
-        else:
-            return None
+        return user.sub_duration
+        # if hasattr(user, 'sub_duration'):
+        #     return user.sub_duration
+        # else:
+        #     return None
   
     async def get_email_limit(self, user_id: int):
         user = await self.user_dal.get_one(user_id=user_id)
@@ -58,15 +65,11 @@ class UserService:
         else:
             return False
         
-        
     async def update_user(self, user_id: int, **kwargs) -> None:
         await self.user_dal.update(user_id, **kwargs)
         
-        
-    
     async def user_is_registered(self, user_id: int) -> bool:
         return await self.user_dal.is_column_filled(user_id, "personal_email", "password")
-
 
     async def user_subscription(self, user_id: int) -> str:
         user = await self.user_dal.get_one(user_id=user_id)
@@ -88,9 +91,6 @@ class UserService:
     async def delete_user_by_user_id(self, user_id: int) -> None:
         await self.user_dal.delete(user_id=user_id)
         
-        
-
-
     async def get_user_personal_email(self, user_id: int) -> str:
         user = await self.user_dal.get_one(user_id=user_id)
         if hasattr(user, 'personal_email'):
@@ -98,8 +98,6 @@ class UserService:
         else:
             return False
         
-        
-    
     # async def get_user_ids(self) -> Union[List[int], bool]:
     #     # Получаем список всех пользователей из БД
     #     users = await self.user_dal.get_all()
@@ -110,11 +108,12 @@ class UserService:
     #     else:
     #         return []
         
-
     async def get_user_password(self, user_id: int) -> str:
         user = await self.user_dal.get_one(user_id=user_id)
+        return self._encryption.decrypt(user.password, user.secret)
 
-        return user.password
+    async def get_user(self, **kwargs) -> User:
+        return await self.user_dal.get_one(**kwargs)
 
     async def update_user_account(self, user_id: int, **kwargs) -> None:
         await self.user_dal.update(user_id, **kwargs)
@@ -125,13 +124,13 @@ class UserService:
             await self.user_dal.update(user_id, sub_duration=sub.sub_duration - 1)
         else:
             await bot.send_message(user_id, "Подписка закончилась!!!\nПочты, превышающие лимиты подписки 'free' будут недоступны")
-            await self.user_dal.update(user_id, 
-                                       email_limit=200, 
-                                       audio_limit=20, 
-                                       subscription=UserSubscription.NOT_SUBSCRIBED
-                                       )
-            await self.settings_dal.update(user_id, 
-                                           email_limit_to_send=25)
+            await self.user_dal.update(
+                user_id, 
+                email_limit=200, 
+                audio_limit=20, 
+                subscription=UserSubscription.NOT_SUBSCRIBED
+            )
+            await self.settings_dal.update(user_id, email_limit_to_send=25)
             email_list = await self.email_dal.get_email_list(user_id)
             if len(email_list) > 200:
                 email_list = email_list[-200:]

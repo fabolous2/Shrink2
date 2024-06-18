@@ -35,7 +35,7 @@ class MailingService:
         self.user_service = user_service
         self.email_message = MIMEMultipart()
         self.client = SMTP(hostname='smtp.gmail.com', port=587)
-        self.scheduler = AsyncIOScheduler()
+        self.scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
         self.audio_service = audio_service
         self.email_service = email_service
         self.email_dal = email_dal
@@ -147,9 +147,7 @@ class MailingService:
             
         last_index = list_to_send.index(last_sent_email)
         
-        tmp_last_sent_email_index = await self.email_dal.get_email_id(user_id=user_id, 
-                                                         email=last_sent_email)
-        
+        tmp_last_sent_email_index = await self.email_dal.get_email_id(user_id=user_id, email=last_sent_email)
         
         if not tmp_last_sent_email_index in email_indexes:
             list_to_check = list_to_send[last_index:] + list_to_send[0:last_index+1]
@@ -173,15 +171,11 @@ class MailingService:
             
                
         for email in (list_to_send[last_sent_email_index:] + list_to_send[:last_sent_email_index]):
-            email_id = await self.email_dal.get_email_id(user_id=user_id, 
-                                                         email=email)
+            email_id = await self.email_dal.get_email_id(user_id=user_id, email=email)
             if email_id in email_indexes:
                 if email not in tmp_list:
                     tmp_list.append(email)
                 
-                          
-        print("tmp_list is", tmp_list)
-        
         last_sent_email_index = tmp_list.index(last_sent_email)
         
         if COUNT > len(tmp_list):
@@ -191,14 +185,12 @@ class MailingService:
         elif last_sent_email_index + COUNT > len(tmp_list):
             final_list_to_send = tmp_list[last_sent_email_index:] + tmp_list[:COUNT - len(list_to_send[last_sent_email_index:]) + 1]
             
-            
         elif last_sent_email_index + COUNT == len(tmp_list):
             final_list_to_send = tmp_list[last_sent_email_index:]
             final_list_to_send.append(tmp_list[0])
             
         else:
             final_list_to_send = tmp_list[last_sent_email_index:last_sent_email_index + COUNT + 1]
-                
                 
         await self.email_dal.update_last_sent_index(user_id=user_id, 
                                                     email_address=last_sent_email, 
@@ -207,11 +199,8 @@ class MailingService:
                                                     email_address=final_list_to_send[-1], 
                                                     last_index = 1)
         
-        print("Список", final_list_to_send)
-        
         final_list_to_send = final_list_to_send[0:-1] if need_to_del else final_list_to_send
         
-        print("ИТОГОВЫЙ СПИСОК:",final_list_to_send)
 
         for email in final_list_to_send:
             email_id = await self.email_dal.get_email_id(user_id=user_id, email=email)
@@ -232,9 +221,7 @@ class MailingService:
                 if count == 0:
                     await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
                     
-                
-        await self.email_dal.increment_indexes(user_id=user_id,
-                                               emails=final_list_to_send[0:-1])
+        await self.email_dal.increment_indexes(user_id=user_id, emails=final_list_to_send[0:-1])
         
 
     async def auto_mailing_starter(self, user_id: int, bot: Bot, event_chat: Chat) -> None:
@@ -257,16 +244,16 @@ class MailingService:
             if not email_amount:
                 return await bot.send_message(
                         chat_id=event_chat.id,
-                        text='Список доступных почт для отправки закончился. Пополните список почт, либо список аудио')
-                
+                        text='Список доступных почт для отправки закончился. Пополните список почт, либо список аудио'
+                    )
                 
             if frequency != current_frequency:
                 await self.settings_service.update_settings(user_id=user_id, current_frequency = current_frequency + 1)
                 if current_frequency != 0:
                     return await bot.send_message(
                             chat_id=event_chat.id,
-                            text=f'До отправления осталось {frequency - current_frequency} дней')
-                    
+                            text=f'До отправления осталось {frequency - current_frequency} дней'
+                        )
             else:
                 try:
                     await self.auto_mailing(user_id=user_id, bot=bot, event_chat=event_chat, email_indexes=email_indexes)
@@ -310,7 +297,7 @@ class MailingService:
                     hour=schedule_time.hour,
                     minute=schedule_time.minute,
                     kwargs={'user_id': user_id, 'bot': bot, 'event_chat': event_chat}, 
-                    id = 'auto'
+                    id='auto'
                 )
                 self.scheduler.start()
                 await self.settings_service.update_settings(user_id=user_id, is_turned_on=True)
@@ -318,7 +305,7 @@ class MailingService:
             except SMTPAuthenticationError:
                 await bot.send_message(
                     chat_id=event_chat.id,
-                    text='Не удалось ауденцифитироваться в вашем аккаунте'
+                    text='Не удалось аутенцифитироваться в вашем аккаунте'
                 )
 
         elif not schedule_time:

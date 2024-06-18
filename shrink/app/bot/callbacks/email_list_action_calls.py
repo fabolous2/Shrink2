@@ -14,7 +14,7 @@ from app.bot.utils.bot_answer_text import (
     get_empty_email_list
     )
 from app.bot.keyboard import inline
-from app.services import EmailService
+from app.services import EmailService, UserService
 
 from dishka.integrations.aiogram import inject, Depends
 
@@ -50,13 +50,12 @@ async def add_email_list_to_db(
     user_id = query.from_user.id
     email_list = await email_service.available_email_list(user_id=user_id)
     
-    
     if email_list:
         pages = [email_list[i:i + PAGE_SIZE] for i in range(0, len(email_list), PAGE_SIZE)]
         page_count = len(pages)
         
         await state.update_data(pages=pages)
-        await show_email_page(query.message, pages, 0, page_count)
+        await show_email_page(query.message, pages, 0, page_count, len(email_list))
 
     else:
         await query.message.edit_text(
@@ -65,7 +64,7 @@ async def add_email_list_to_db(
         )
         
 
-async def show_email_page(message, pages, current_page, page_count):
+async def show_email_page(message, pages, current_page, page_count, email_count):
     email_list = '\n'.join(pages[current_page])
     keyboard = inline.paginator_email(current_page, page_count, pages)
     
@@ -76,22 +75,28 @@ async def show_email_page(message, pages, current_page, page_count):
 
     if message.text:
         await message.edit_text(
-            text=f"{get_user_email_addresses(email_list=email_list)}",
-           reply_markup=InlineKeyboardMarkup(inline_keyboard=new_keyboard)
-    )
+            text=f"{get_user_email_addresses(email_list=email_list, email_count=email_count)}",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=new_keyboard)
+        )
     else:
         await message.answer(
-            text=get_user_email_addresses(email_list=email_list),
+            text=get_user_email_addresses(email_list=email_list, email_count=email_count),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=new_keyboard)
         )
         
     
 @router.callback_query(F.data.startswith("pag:"))
-async def handle_pagination_action(query: CallbackQuery, state: FSMContext):
+@inject
+async def handle_pagination_action(
+    query: CallbackQuery,
+    state: FSMContext,
+    email_service: Annotated[EmailService, Depends()],
+):
     data = query.data.split(":")[-1] 
     action, current_page, page_count = data.split(",")[:3] 
     current_page = int(current_page)
     page_count = int(page_count)
+    email_list = await email_service.available_email_list(user_id=query.from_user.id)
 
     state_data = await state.get_data()
     pages = state_data.get("pages")
@@ -101,14 +106,26 @@ async def handle_pagination_action(query: CallbackQuery, state: FSMContext):
     elif action == 'next':
         current_page += 1
 
-    await show_email_page(query.message, pages, current_page, page_count)
+    await show_email_page(query.message, pages, current_page, page_count, len(email_list))
     
 
 @router.callback_query(F.data == "add_emails_to_db")
-async def add_email(query: CallbackQuery, state: FSMContext):
-    await query.message.edit_text(get_wait_email_addresses_text())
-    await state.clear()
-    await state.set_state(AddToEmailStatesGroup.WAIT_FOR_ADD_EMAIL)
+@inject
+async def add_email(
+    query: CallbackQuery,
+    state: FSMContext,
+    email_service: Annotated[EmailService, Depends()],
+    user_service: Annotated[UserService, Depends()],
+) -> None:
+    user_id = query.from_user.id
+    email_from_db = await email_service.get_user_email_list(user_id)
+    email_limit = await user_service.get_email_limit(user_id)
+    if len(email_from_db) != 0 and len(email_from_db.split('\n')) == email_limit:
+        await query.answer(f'❗️Достигнут лимит {email_limit}/{email_limit} почт', show_alert=True)
+    else:
+        await query.message.edit_text(get_wait_email_addresses_text())
+        await state.clear()
+        await state.set_state(AddToEmailStatesGroup.WAIT_FOR_ADD_EMAIL)
 
 
 @router.callback_query(F.data == "edit_emails")
@@ -119,9 +136,6 @@ async def edition_emails_call(query: CallbackQuery, email_service: Annotated[Ema
 
     if email_list:
         email_list = "\n".join(email_list)
-        await query.message.answer(text=get_user_email_addresses(),
-                                   reply_markup=inline.choose_email_action_markup)
-        
+        await query.message.answer(text=get_user_email_addresses(), reply_markup=inline.choose_email_action_markup)
     else:
-        await query.message.answer(text=get_empty_email_list(),
-                                   reply_markup=inline.add_emails_to_list_markup)
+        await query.message.answer(text=get_empty_email_list(), reply_markup=inline.add_emails_to_list_markup)
