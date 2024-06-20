@@ -191,12 +191,12 @@ async def pre_checkout(
     mailing_service: Annotated[MailingService, Depends()], 
     email_service: Annotated[EmailService, Depends()],
     audio_service: Annotated[AudioService, Depends()]
-):
+) -> None:
     await bot.answer_pre_checkout_query(pre_checkout.id, ok=True)
-    total_amount = pre_checkout.total_amount // 100
+    total_amount = pre_checkout.total_amount
     user_id = pre_checkout.from_user.id
 
-    if total_amount in [600, 1500, 2700]:
+    if total_amount in [750, 1500, 2700]:
         await user_service.update_user(
             user_id=user_id,
             subscription=UserSubscription.PREMIUM, 
@@ -278,14 +278,14 @@ async def pre_checkout(
         await audio_service.update_audio_list(audio_dicts)
        
     await settings_service.update_email_limit_to_send(user_id=user_id, count=450)
-    await settings_service.update_settings(user_id, email_limit_to_send_for_extra = 50)
+    await settings_service.update_settings(user_id, email_limit_to_send_for_extra=50)
 
-    if total_amount == 600 or total_amount == 400:
-        await user_service.update_user(user_id=user_id, sub_duration = 30)
+    if total_amount == 750 or total_amount == 400:
+        await user_service.update_user(user_id=user_id, sub_duration=30)
     elif total_amount == 1500 or total_amount == 1000:
-        await user_service.update_user(user_id=user_id, sub_duration = 90)
+        await user_service.update_user(user_id=user_id, sub_duration=90)
     else:
-        await user_service.update_user(user_id=user_id, sub_duration = 180)
+        await user_service.update_user(user_id=user_id, sub_duration=180)
     await mailing_service.update_sub_duration(user_id=user_id, bot=bot)
     await mailing_service.update_email_limit_to_send_for_extra(user_id=user_id, bot=bot)
         

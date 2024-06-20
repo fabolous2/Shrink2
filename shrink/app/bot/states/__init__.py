@@ -4,7 +4,7 @@ from .email_actions import AddToEmailStatesGroup, DeletionEmailStatesGroup, Emai
 from .support import SupportStatesGroup
 from .audio_actions import AddAudiosStatesGroup, DelAudioStatesGroup
 from .mailing_actions import SelfMailingStatesGroup
-from .subscription_actions import SubscriptionActionsStatesGroup
+from .subscription_actions import SubscriptionActionsStatesGroup, SubscriptionIssuingSG
 
 __all__ = [
     "SupportStatesGroup",
@@ -18,5 +18,6 @@ __all__ = [
     "EmailQuantityStatesGroup",
     "EmailScheduleStatesGroup",
     "EmailContentStatesGroup",
-    "SubscriptionActionsStatesGroup"
+    "SubscriptionActionsStatesGroup",
+    "SubscriptionIssuingSG"
 ]

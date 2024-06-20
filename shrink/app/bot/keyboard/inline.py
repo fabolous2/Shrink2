@@ -10,6 +10,38 @@ def create_inline_keyboard(*rows: list[InlineKeyboardButton]) -> InlineKeyboardM
 
 # Определение кнопок
 
+subscription_types_markup = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text='🥇 Premium', callback_data="premium_type"),
+        ],
+        [
+            InlineKeyboardButton(text='🥈 Basic', callback_data="basic_type"),
+        ]
+    ]
+)
+
+again_searching_markup = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🔎 Найти заного.", callback_data="subscription_issuing")
+        ]
+    ]
+)
+
+duration_markup = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="1 месяц", callback_data="one_month_subscription")
+        ],
+        [
+            InlineKeyboardButton(text="3 месяца", callback_data="three_months_subscription")
+        ],
+        [
+            InlineKeyboardButton(text="6 месяцов", callback_data="six_months_subscription")
+        ]
+    ]
+)
 
 def del_audio_button(unique_id: int) -> InlineKeyboardMarkup:
     button = InlineKeyboardMarkup(
@@ -103,6 +135,7 @@ set_email_scheculer_button = create_inline_button("⏰ Время отправк
 set_audio_quantity_button = create_inline_button("🔉 Количество аудио в одном письме", "set_quantity")
 
 mailing_for_admin = create_inline_button("📪 Рассылка", "newsletter")
+subscription_issuing_button = create_inline_button("🎫 Выдать подписку", "subscription_issuing")
 
 premium_subscription_choice_button = create_inline_button("🥇premium", "premium")
 basic_subscription_choice_button = create_inline_button("🥈basic", "basic")
@@ -211,7 +244,7 @@ basic_subscription_markup = create_inline_keyboard([basic_subscription_choice_bu
 cancel_purchase_subscription_markup = create_inline_keyboard([create_inline_button('❌Отменить', 'cancel')])
 choose_audio_actions_kb_markup = create_inline_keyboard([add_audio_button], [delete_audio_button]) 
 add_audio_kb_markup = create_inline_keyboard([add_audio_button], [back_to_settings_menu])
-mailing_for_admin_markup = create_inline_keyboard([mailing_for_admin])
+mailing_for_admin_markup = create_inline_keyboard([mailing_for_admin], [subscription_issuing_button])
 frequency_kb_markup = create_inline_keyboard([one_day_frequency, two_day_frequency], [three_day_frequency, four_day_frequency],
                                              [back_to_auto_button])
 subject_kb_markup = create_inline_keyboard([without_subj_button], [back_to_auto_button])
