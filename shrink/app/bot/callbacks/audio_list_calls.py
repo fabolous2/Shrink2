@@ -132,7 +132,7 @@ async def play_audio_callback(query: CallbackQuery, state: FSMContext):
     if file_id:
         await query.message.answer_audio(file_id)
     else:
-        await query.message.answer("РђСѓРґРёРѕС„Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ.")
+        await query.message.answer("Аудиофайл не найден.")
         
         
 def find_file_id_by_unique_id(audio_list, unique_id):
@@ -155,7 +155,7 @@ async def add_audio_call_to_db(
     audio_limit = await user_service.get_audio_limit(user_id=user_id)
 
     if audios and len(audios) == audio_limit:
-        await query.answer(f"вќ—Р”РѕСЃС‚РёРіРЅСѓС‚ Р»РёРјРёС‚ {audio_limit}/{audio_limit} Р°СѓРґРёРѕ", show_alert=True)
+        await query.answer(f"?Достигнут лимит {audio_limit}/{audio_limit} аудио", show_alert=True)
     else:
         await query.message.edit_text(get_add_audio_text())
         await state.set_state(AddAudiosStatesGroup.WAIT_FOR_AUDIOS)
@@ -204,14 +204,14 @@ async def audio_handler(
                 callback_datas = ["none_lol"] * len(invalid_audio_names)
                 callback_datas.append("ok")
                 invalid_audio_names.append("OK")
-                await album_message.answer("вќ—пёЏРќР• Р‘Р«Р›Р Р”РћР‘РђР’Р›Р•РќР«:", reply_markup=builder.inline_builder(
+                await album_message.answer("??НЕ БЫЛИ ДОБАВЛЕНЫ:", reply_markup=builder.inline_builder(
                             text=invalid_audio_names,
                             callback_data=callback_datas,
                             sizes=1
                         ))  
         except Exception as _ex:
             print(_ex)
-            await album_message.answer("вќ—пёЏР§С‚Рѕ-С‚Рѕ РїРѕС€Р»Рѕ РЅРµ С‚Р°Рє. РћР±СЂР°С‚РёС‚РµСЃСЊ РІ РїРѕРґРґРµСЂР¶РєСѓ")
+            await album_message.answer("??Что-то пошло не так. Обратитесь в поддержку")
         finally:
             await state.clear()
     else:
@@ -265,14 +265,14 @@ async def get_one_audio(
                     await audio_message.answer(get_add_audio(1), reply_markup=inline.view_audio_list_kb_markup)
                 else:
                     await audio_message.answer(get_add_audio(0), reply_markup=inline.view_audio_list_kb_markup)
-                    await audio_message.answer("вќ—РќР• Р‘Р«Р›Рћ Р”РћР‘РђР’Р›Р•РќРћ", reply_markup=builder.inline_builder(
+                    await audio_message.answer("?НЕ БЫЛО ДОБАВЛЕНО", reply_markup=builder.inline_builder(
                         text=[f"{audio_message.audio.file_name}", "OK"],
                         callback_data=["none_lol", "ok"],
                         sizes=1
                     ))
             except Exception as _ex:
                 print(_ex)
-                await audio_message.answer("вќ—пёЏР§С‚Рѕ-С‚Рѕ РїРѕС€Р»Рѕ РЅРµ С‚Р°Рє. РћР±СЂР°С‚РёС‚РµСЃСЊ РІ РїРѕРґРґРµСЂР¶РєСѓ")
+                await audio_message.answer("??Что-то пошло не так. Обратитесь в поддержку")
             finally:
                 await state.clear()
     else:
@@ -321,7 +321,7 @@ async def del_singleaudio_call(
         else:
             await message.answer(get_del_audio(0), reply_markup=inline.view_audio_list_kb_markup)
     else:
-        await message.answer("Р’С‹ РЅРµ РѕС‚РїСЂР°РІРёР»Рё Р°СѓРґРёРѕС„Р°Р№Р» РґР»СЏ СѓРґР°Р»РµРЅРёСЏ.")
+        await message.answer("Вы не отправили аудиофайл для удаления.")
     await state.clear()    
     
 
@@ -361,7 +361,7 @@ async def get_audio_list_call(
 
     if audio_list:
         chunks = [audio_list[i:i + 10] for i in range(0, len(audio_list), 10)]
-        await query.answer("Р’РѕС‚ РІР°С€ СЃРїРёСЃРѕРє Р°СѓРґРёРѕ:")
+        await query.answer("Вот ваш список аудио:")
 
         for audio_chunk in chunks:
             media_group = MediaGroupBuilder()
@@ -371,7 +371,7 @@ async def get_audio_list_call(
             ]
             await bot.send_media_group(user_id, media_group.build())
 
-        await query.answer("РњРѕР¶РµС‚Рµ РІС‹Р±СЂР°С‚СЊ РґРµР№СЃС‚РІРёРµ РЅРёР¶Рµ", reply_markup=inline.choose_audio_actions_kb_markup)
+        await query.answer("Можете выбрать действие ниже", reply_markup=inline.choose_audio_actions_kb_markup)
 
     else:
         await query.answer(get_empty_audio_list(), reply_markup=inline.add_audio_kb_markup)

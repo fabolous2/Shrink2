@@ -275,8 +275,9 @@ async def handle_audio(
             f"✅ Вы успешно добавили почты (0)",
             reply_markup=inline.view_email_list_kb_markup
         )   
+        not_added = html.escape('\n'.join(unfiltered_emails.split()))
         await message.answer(
-            text=f"❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{html.escape('\n'.join(unfiltered_emails.split()))}",
+            text=f"❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{not_added}",
             reply_markup=inline.ok_kb_markup
         )
     else:   
@@ -315,8 +316,9 @@ async def handle_audio(
             print(invalid_emails)
             print(len(invalid_emails))
             if invalid_emails:
+                not_added = html.escape('\n'.join(invalid_emails))
                 await message.answer(
-                    text=f"❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{html.escape('\n'.join(invalid_emails))}",
+                    text=f"❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{not_added}",
                     reply_markup=inline.ok_kb_markup
                 )
         except Exception as _ex:
@@ -368,7 +370,7 @@ async def email_del(
     user_id = message.from_user.id
     text = message.text
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    emails = re.findall(email_pattern, text)
+    emails = re.findall(email_pattern, text.lower())
     
     if emails:
         for email in emails:
@@ -386,8 +388,6 @@ async def email_del(
         deleted_count = await email_service.get_count_matching_emails(user_id, to_list)
 
         try:
-            print(emails_to_del_list)
-            print(to_list)
             await email_service.delete_emails_by_address(to_list)
             last_message_id = message.message_id - 1
             await delete_messages(message.chat.id, [last_message_id, message.message_id], bot)

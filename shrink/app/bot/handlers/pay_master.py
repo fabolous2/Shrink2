@@ -5,7 +5,6 @@ from app.services import UserService
 from dishka.integrations.aiogram import inject, Depends
 
 from app.bot.keyboard import inline
-from app.main.config import PAYMASTER_TOKEN
 from app.models.user import UserSubscription
 from app.services.settings_service import SettingsService
 from app.services.mailing_service import MailingService

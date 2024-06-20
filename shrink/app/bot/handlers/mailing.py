@@ -1,13 +1,8 @@
-from cgitb import text
 import hashlib
 import re
 import html
-from tkinter import N
-from turtle import update
 from aiosmtplib import SMTPConnectError, SMTPSenderRefused
 from typing import Annotated, Callable
-
-import inject as inj
 
 from aiogram import Bot, Router, F
 from aiogram.types import ContentType, Chat, User, Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
@@ -84,14 +79,16 @@ async def show_extra_audio_page(
             reply_markup=keyboard,
         )
         if times == 0 and invalid_emails:
-            await query.message.answer(text=f'❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{html.escape('\n'.join(invalid_emails))}', reply_markup=inline.ok_kb_markup)
+            not_added = html.escape('\n'.join(invalid_emails))
+            await query.message.answer(text=f'❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{not_added}', reply_markup=inline.ok_kb_markup)
     else:  
         await message.answer(
             get_extra_menu(subject, desc, recipients),
             reply_markup=keyboard
         )
         if times == 0 and invalid_emails:
-            await message.answer(text=f'❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{html.escape('\n'.join(invalid_emails))}', reply_markup=inline.ok_kb_markup)
+            not_added = html.escape('\n'.join(invalid_emails))
+            await message.answer(text=f'❗️НЕ БЫЛИ ДОБАВЛЕНЫ:\n{not_added}', reply_markup=inline.ok_kb_markup)
 
 
 @router.callback_query(F.data == 'del_audio_from_db', SelfMailingStatesGroup.EXTRA_PAGE)
