@@ -207,8 +207,7 @@ class UserEmailDAL:
                    UserEmailDB.available_is == available_is)
         )
         result = await self.session.execute(query)
-        email_addresses = [row for row in result.scalars()]
-        return email_addresses
+        return result.scalars().all()
     
     
     async def count_matching_emails(self, user_id: int, email_list: list[str]) -> int:

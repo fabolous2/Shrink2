@@ -1,0 +1,3 @@
+class EmptyListError(Exception):
+    pass
+

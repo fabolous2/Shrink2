@@ -1,17 +1,7 @@
-from aiogram import Bot
 from app.models import EmailSettings
 from app.data.dal import EmailSettingsDAL , UserAudioDAL, UserEmailDAL
-from app.data.models import Base
-
-from app.bot.utils.errors import (
-    SchedulerNotSetError,
-    AudioNotAddedError,
-    EmailAudioNotAddedError,
-    EmailNotAddedError,
-    NotAvailableToSend)
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 
 
 class SettingsService:
@@ -26,25 +16,23 @@ class SettingsService:
         self.email_dal = email_dal
         self.scheduler = AsyncIOScheduler()
 
+    async def get_settings(self, **kwargs) -> EmailSettings:
+        return await self.settings_dal.get_one(**kwargs)
     
     async def update_settings(self, user_id: int, **kwargs) -> None:
         await self.settings_dal.update(user_id, **kwargs)
-
-        
+    
     async def get_user_settings_content(self, user_id: int) -> EmailSettings:
         settings = await self.settings_dal.get_one(user_id=user_id)
         return settings if settings else None
     
-    
     async def delete_user_by_user_id(self, user_id: int) -> None:
         await self.settings_dal.delete(user_id=user_id)
     
-
     async def save_user_settings(self, settings: EmailSettings) -> None:
         exists = await self.settings_dal.exists(user_id=settings.user_id)
         if not exists:
             await self.settings_dal.add(settings)
-
 
     async def get_user_mail_subject(self, user_id: int) -> str:
         settings = await self.settings_dal.get_one(user_id=user_id)
@@ -64,13 +52,11 @@ class SettingsService:
             return settings.email_limit_to_send
         return "None"
     
-    
     async def get_current_frequency(self, user_id: int) -> str:
         settings = await self.settings_dal.get_one(user_id=user_id)
         if settings:
             return settings.current_frequency
         return "None"
-    
     
     async def get_user_mail_text(self, user_id: int) -> str:
         settings = await self.settings_dal.get_one(user_id=user_id)
@@ -78,11 +64,9 @@ class SettingsService:
             return settings.email_text
         return "None"
         
-
     async def get_user_scheduler(self, user_id: int) -> str:
         settings = await self.settings_dal.get_one(user_id=user_id)
         return settings.schedule_time
-    
     
     async def get_amount(self, user_id: int) -> str:
         settings = await self.settings_dal.get_one(user_id=user_id)

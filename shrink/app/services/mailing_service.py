@@ -1,4 +1,5 @@
 import datetime
+import asyncio
 from aiogram import Bot
 from aiogram.types import Chat
 from aiogram_album import AlbumMessage
@@ -128,11 +129,10 @@ class MailingService:
             )
             self.email_message = MIMEMultipart()
             await client.quit()
+        asyncio.sleep(0.03)
 
 
     async def auto_mailing(self, user_id: int, bot: Bot, event_chat: Chat, email_indexes: list[int]) -> None:
-        print(email_indexes)
-        
         final_list_to_send = []
         tmp_list = []
         need_to_del = True
@@ -258,7 +258,7 @@ class MailingService:
                 try:
                     await self.auto_mailing(user_id=user_id, bot=bot, event_chat=event_chat, email_indexes=email_indexes)
                     await bot.send_message(chat_id=event_chat.id, text=f"Успешно разосланы письма! Следующая рассылка в - {schedule_time}")
-                    await self.settings_service.update_settings(user_id,current_frequency = 0)
+                    await self.settings_service.update_settings(user_id, current_frequency = 0)
                     
                     today = datetime.datetime.now().date()
                     next_day = today + datetime.timedelta(days=1)
@@ -279,80 +279,73 @@ class MailingService:
                     )
                 
 
-    async def turn_on_mailing(self, user_id: int, bot: Bot, event_chat: Chat) -> None:
-        schedule_time = await self.settings_service.get_user_scheduler(user_id=user_id)
-        audios =  await self.audio_service.get_audio_list(user_id=user_id)
-        emails = await self.email_service.get_user_email_list(user_id=user_id)
-
-        if schedule_time:
-            try:
-                job = self.scheduler.get_jobs()
-                print(job)
-                if job:
-                    self.scheduler.remove_job('MailingService.auto_mailing_starter')
-                    
-                self.scheduler.add_job(
-                    func=self.auto_mailing_starter,
-                    trigger="cron",
-                    hour=schedule_time.hour,
-                    minute=schedule_time.minute,
-                    kwargs={'user_id': user_id, 'bot': bot, 'event_chat': event_chat}, 
-                    id='auto'
-                )
-                self.scheduler.start()
-                await self.settings_service.update_settings(user_id=user_id, is_turned_on=True)
-
-            except SMTPAuthenticationError:
-                await bot.send_message(
-                    chat_id=event_chat.id,
-                    text='Не удалось аутенцифитироваться в вашем аккаунте'
-                )
-
-        elif not schedule_time:
-            raise SchedulerNotSetError("Scheduler is not set")
-        elif not audios and not emails:
-            raise EmailAudioNotAddedError("user haven't got any audios and emails in database")
-        elif not audios:
-            raise AudioNotAddedError("user haven't got any audios in database")
-        elif not emails:
-            raise EmailNotAddedError("user haven't got any emails in database")
-
-
-    async def turn_off_scheduler(self, user_id: int) -> None:
-        job = self.scheduler.get_job('MailingService.auto_mailing_starter')
-
-        if job:
-            self.scheduler.remove_job('MailingService.auto_mailing_starter')
-        await self.settings_service.update_settings(user_id=user_id, is_turned_on=False) 
-        
-        
-    async def update_sub_duration(self, user_id: int, bot: Bot):
-        sub = await self.user_service.get_sub_duration(user_id)
-        if sub >= 0:
-            self.scheduler.add_job(
-            func=self.user_service.update_sub_duration,
-            trigger="cron",
-            hour=0,
-            minute=0,
-            kwargs={'user_id': user_id, 'bot': bot}
-        )
-            # self.scheduler.start()
-            
-            
-    async def update_email_limit_to_send_for_extra(self, user_id: int, bot: Bot):
-        self.scheduler.add_job(
-        func=self.user_service.update_email_limit_to_send_for_extra,
-        trigger="cron",
-        hour=0,
-        minute=0,
-        kwargs={'user_id': user_id, 'bot': bot}
-        )
-            
-    
-    # async def test(self, user_id: int) -> None:
+    # async def turn_on_mailing(self, user_id: int, bot: Bot, event_chat: Chat) -> None:
     #     schedule_time = await self.settings_service.get_user_scheduler(user_id=user_id)
-    #     print(schedule_time)
-    #     print(type(schedule_time))
-    #     print(schedule_time.hour)
+    #     audios =  await self.audio_service.get_audio_list(user_id=user_id)
+    #     emails = await self.email_service.get_user_email_list(user_id=user_id)
+
+    #     if schedule_time:
+    #         try:
+    #             job = self.scheduler.get_jobs()
+    #             print(job)
+    #             if job:
+    #                 self.scheduler.remove_job('MailingService.auto_mailing_starter')
+                    
+    #             self.scheduler.add_job(
+    #                 func=self.auto_mailing_starter,
+    #                 trigger="cron",
+    #                 hour=schedule_time.hour,
+    #                 minute=schedule_time.minute,
+    #                 kwargs={'user_id': user_id, 'bot': bot, 'event_chat': event_chat}, 
+    #                 id='auto'
+    #             )
+    #             self.scheduler.start()
+    #             await self.settings_service.update_settings(user_id=user_id, is_turned_on=True)
+
+    #         except SMTPAuthenticationError:
+    #             await bot.send_message(
+    #                 chat_id=event_chat.id,
+    #                 text='Не удалось аутенцифитироваться в вашем аккаунте'
+    #             )
+
+    #     elif not schedule_time:
+    #         raise SchedulerNotSetError("Scheduler is not set")
+    #     elif not audios and not emails:
+    #         raise EmailAudioNotAddedError("user haven't got any audios and emails in database")
+    #     elif not audios:
+    #         raise AudioNotAddedError("user haven't got any audios in database")
+    #     elif not emails:
+    #         raise EmailNotAddedError("user haven't got any emails in database")
+
+
+    # async def turn_off_scheduler(self, user_id: int) -> None:
+    #     job = self.scheduler.get_job('MailingService.auto_mailing_starter')
+
+    #     if job:
+    #         self.scheduler.remove_job('MailingService.auto_mailing_starter')
+    #     await self.settings_service.update_settings(user_id=user_id, is_turned_on=False) 
         
-    #     await self.attach_message(user_id=user_id)
+        
+    # async def update_sub_duration(self, user_id: int, bot: Bot):
+    #     sub = await self.user_service.get_sub_duration(user_id)
+    #     if sub >= 0:
+    #         self.scheduler.add_job(
+    #         func=self.user_service.update_sub_duration,
+    #         trigger="cron",
+    #         hour=0,
+    #         minute=0,
+    #         kwargs={'user_id': user_id, 'bot': bot}
+    #     )
+    #     self.scheduler.start()
+            
+            
+    # async def update_email_limit_to_send_for_extra(self, user_id: int, bot: Bot):
+    #     self.scheduler.add_job(
+    #     func=self.user_service.update_email_limit_to_send_for_extra,
+    #     trigger="cron",
+    #     hour=0,
+    #     minute=0,
+    #     kwargs={'user_id': user_id, 'bot': bot}
+    #     )
+    #     self.scheduler.start()
+            

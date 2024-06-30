@@ -9,6 +9,8 @@ from aiogram.fsm.state import StatesGroup, State
 
 from dishka.integrations.aiogram import inject, Depends
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from app.bot.keyboard import inline, builder
 from app.services import (
     UserService,
@@ -158,6 +160,7 @@ async def subscription_duration_handler(
     audio_service: Annotated[AudioService, Depends()],
     settings_service: Annotated[SettingsService, Depends()],
     mailing_service: Annotated[MailingService, Depends()],
+    scheduler: AsyncIOScheduler,
 ) -> None:
     await query.message.delete()
     state_data = await state.get_data()
@@ -255,8 +258,26 @@ async def subscription_duration_handler(
         await user_service.update_user(user_id=user_id, sub_duration=90)
     else:
         await user_service.update_user(user_id=user_id, sub_duration=180)
-    await mailing_service.update_sub_duration(user_id=user_id, bot=bot)
-    await mailing_service.update_email_limit_to_send_for_extra(user_id=user_id, bot=bot)
+
+    # await mailing_service.update_sub_duration(user_id=user_id, bot=bot)
+    sub = await user_service.get_sub_duration(user_id)
+    if sub >= 0:
+        scheduler.add_job(
+        func=user_service.update_sub_duration,
+        trigger="cron",
+        hour=0,
+        minute=0,
+        kwargs={'user_id': user_id, 'bot': bot}
+    )
+    scheduler.add_job(
+        func=user_service.update_email_limit_to_send_for_extra,
+        trigger="cron",
+        hour=0,
+        minute=0,
+        kwargs={'user_id': user_id, 'bot': bot}
+        )
+    scheduler.start()
+    # await mailing_service.update_email_limit_to_send_for_extra(user_id=user_id, bot=bot)
     await query.message.answer("Вы успешно выдали пользователю подписку !")
 
 

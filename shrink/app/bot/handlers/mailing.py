@@ -2,7 +2,7 @@ import hashlib
 import re
 import html
 from aiosmtplib import SMTPConnectError, SMTPSenderRefused
-from typing import Annotated, Callable
+from typing import Annotated
 
 from aiogram import Bot, Router, F
 from aiogram.types import ContentType, Chat, User, Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
@@ -14,14 +14,13 @@ from aiosmtplib import SMTPConnectError, SMTPSenderRefused
 from app.bot.keyboard import inline
 
 from app.bot.states import SelfMailingStatesGroup
-from app.services import EmailService, AudioService, MailingService
+from app.services import EmailService, AudioService, MailingService, ExtraMailing, UserService
 
 from dishka.integrations.aiogram import inject, Depends
 
 from app.bot.utils.bot_answer_text import get_call_support, get_del_audio_text, get_extra_menu, get_successful_send_audio
 from app.services.settings_service import SettingsService
 from app.bot.handlers.commands import delete_messages
-from app.bot.states.audio_actions import DelAudioStatesGroup
 from app.bot.keyboard.inline import add_beats_to_state
 
 
@@ -377,62 +376,64 @@ async def self_mailing_one_audio(
             await state.set_state(SelfMailingStatesGroup.EXTRA_PAGE)
         
 
-@router.callback_query(F.data == 'send_from_db')
-@router.message(SelfMailingStatesGroup.WAIT_FOR_AUDIOS)        
+@router.callback_query(F.data == 'send_from_db', SelfMailingStatesGroup.WAIT_FOR_AUDIOS) 
 @inject
 async def extra_send_beats(
     query: CallbackQuery,
-    mailing_service: Annotated[MailingService, Depends()],
+    user_service: Annotated[UserService, Depends()],
     audio_service: Annotated[AudioService, Depends()],
     settings_service: Annotated[SettingsService, Depends()],
+    extra_mailing: Annotated[ExtraMailing, Depends()],
     state: FSMContext,
     bot: Bot,
     event_chat: Chat
 ) -> None:
     user_id = query.from_user.id
-    LIMIT = await settings_service.get_email_limit_to_send_for_extra(user_id)
-    user_data = await state.get_data()
-    subject = user_data['subject']
-    desc = user_data['desc']
-    emails_for_extra = user_data['emails_for_extra']
-    count = 0
-    
-    filtered_list = []
-    audio_names_to_check = set()
-    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-    
-    audio_messages = await audio_service.get_audio_list(user_id=user_id, is_extra=1)
+    audio_list = await audio_service.get_audio_list(user_id=user_id, is_extra=1)
 
-    if audio_messages is not None:
+    if audio_list is not None:
         await query.message.answer("Идет отправка...")
-        for audio in audio_messages:
+
+        user = await user_service.get_user(user_id=user_id)
+        limit = await settings_service.get_email_limit_to_send_for_extra(user_id)
+        user_data = await state.get_data()
+        subject = user_data['subject']
+        body = user_data['desc']
+        emails = user_data['emails_for_extra']
+        count = 0
+
+        # Фильтрует список аудио так, чтобы не было повторяющихся аудио
+        filtered_list = []
+        audio_names_to_check = set()
+        for audio in audio_list:
                 if audio.name not in audio_names_to_check:
                     audio_names_to_check.add(audio.name)
                     filtered_list.append(audio)
-        audio_messages = filtered_list
-        emails = re.findall(email_pattern, emails_for_extra)
-        
-        await settings_service.update_settings(user_id, email_limit_to_send_for_extra = LIMIT - len(emails))
+        audio_list = filtered_list
 
-        for email in emails:
-            await mailing_service.attach_message_for_extra(subject, desc)
-            [await mailing_service.attach_audio(audio=audio, bot=bot) for audio in audio_messages]
-            
-            try:
-                await mailing_service.connect(user_id=user_id)
-                await mailing_service.auto_send_email(user_id=user_id, emails_to=[email])
-            except SMTPConnectError:
-                    await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")      
-            except SMTPSenderRefused:
-                    count = len(emails)
-                    await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
-                    break  
-            
-        if count < len(emails):
-            await bot.send_message(chat_id=event_chat.id, text=get_successful_send_audio())
-        await audio_service.delete_extra_audio(user_id)
-        await state.update_data(emails=[])
-        await state.set_state(SelfMailingStatesGroup.EXTRA_PAGE)
+        await extra_mailing.compose_email(body=body, subject=subject, sender=user.personal_email)
+        for audio in audio_list:
+            filename = audio.name
+            file = await bot.get_file(audio.file_id)
+            audio_data = await bot.download_file(file.file_path)
+            await extra_mailing.attach_audio(audio_data=audio_data, filename=filename)
+
+        try:
+            password = await user_service.get_user_password(user_id=user_id)
+            await extra_mailing.connect(username=user.personal_email, password=password)
+            await extra_mailing.send_email(sender=user.personal_email, recipients=emails)
+        except SMTPConnectError:
+                await bot.send_message(chat_id=event_chat.id, text="Произошла ошибка при подключении к вашему аккаунту. Попробуйте еще раз или перерегистрируйте аккаунт")      
+        except SMTPSenderRefused:
+                count = len(emails)
+                await bot.send_message(chat_id=event_chat.id, text="Ваше сообщение превысило ограничения размера сообщения Google. За подробной информацией - https://support.google.com/mail/?p=MaxSizeError")
+        finally:
+            if count < len(emails):
+                await bot.send_message(chat_id=event_chat.id, text=get_successful_send_audio())
+            await settings_service.update_settings(user_id, email_limit_to_send_for_extra=limit - len(emails))
+            await audio_service.delete_extra_audio(user_id)
+            await state.update_data(emails=[])
+            await state.set_state(SelfMailingStatesGroup.EXTRA_PAGE)
     else:
         await query.answer('❗️Нужно добавить минимум один бит', show_alert=True)
 

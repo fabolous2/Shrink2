@@ -113,7 +113,8 @@ class UserService:
         return self._encryption.decrypt(user.password, user.secret)
 
     async def get_user(self, **kwargs) -> User:
-        return await self.user_dal.get_one(**kwargs)
+        user = await self.user_dal.get_one(**kwargs)
+        return user
 
     async def update_user_account(self, user_id: int, **kwargs) -> None:
         await self.user_dal.update(user_id, **kwargs)

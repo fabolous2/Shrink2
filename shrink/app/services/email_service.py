@@ -1,13 +1,15 @@
+from typing import Sequence, Optional
+
 from app.data.dal import UserEmailDAL
 
+
 class EmailService:
-    def __init__(
-            self,
-            email_dal: UserEmailDAL
-    ) -> None:
+    def __init__(self, email_dal: UserEmailDAL) -> None:
         self.email_dal = email_dal
 
-
+    async def get_indexes(self, user_id: int) -> Optional[Sequence[int]]:
+        return await self.email_dal.get_email_indexes_to_send(user_id=user_id)
+    
     async def update_email_list(self, emails: list) -> None:
         await self.email_dal.add(emails)
         

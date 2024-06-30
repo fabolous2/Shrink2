@@ -1,13 +1,17 @@
+import datetime
 from typing import Annotated
 
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Chat
-import pytz
+
+from dishka.integrations.aiogram import inject, Depends
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+from aiosmtplib import SMTPAuthenticationError
+
 from app.models import User, EmailSettings as Settings
-
-import datetime
-
 from app.bot.utils.bot_answer_text import (
     get_advice_for_amount,
     get_advice_for_frequency,
@@ -34,16 +38,14 @@ from app.bot.utils.bot_answer_text import (
     get_send_gmail
 )
 from app.bot.keyboard import inline
-from app.services import UserService, SettingsService, MailingService, EmailService, AudioService
+from app.services import UserService, SettingsService, EmailService, AudioService, AutoMailingManager
 from app.bot.states import (
     SelfMailingStatesGroup,
     RegistrationStatesGroup,
     EmailContentStatesGroup,
     SupportStatesGroup
 )
-from app.bot.utils.errors import SchedulerNotSetError, AudioNotAddedError, EmailAudioNotAddedError, EmailNotAddedError
-
-from dishka.integrations.aiogram import inject, Depends
+from app.bot.utils.exceptions import EmptyListError
 
 router = Router(name=__name__)
 
@@ -231,8 +233,12 @@ async def quantity_call(query: CallbackQuery, bot: Bot,
         )
     
     
-@router.callback_query(F.data.in_(["one_day_frequency", "two_day_frequency", 
-                                    "three_day_frequency", "four_day_frequency"]))
+@router.callback_query(F.data.in_([
+    "one_day_frequency",
+    "two_day_frequency", 
+    "three_day_frequency",
+    "four_day_frequency"
+]))
 @inject
 async def frequency(query: CallbackQuery, settings_service: Annotated[SettingsService, Depends()]) -> None:
     current_frequency = await settings_service.get_current_frequency(query.from_user.id)
@@ -255,8 +261,10 @@ async def frequency(query: CallbackQuery, settings_service: Annotated[SettingsSe
         
     if current_frequency > selected_frequency:
         await settings_service.update_settings(user_id=query.from_user.id, current_frequency=selected_frequency)
-        await query.message.answer(user_id=query.from_user.id,
-                               text=get_warning_frequency_text(selected_frequency))
+        await query.message.answer(
+            user_id=query.from_user.id,
+            text=get_warning_frequency_text(selected_frequency)
+        )
     
     await settings_service.update_settings(user_id=query.from_user.id, frequency=selected_frequency)
     await query.answer(f"Периодичность обновлена: {output_frequency}")
@@ -371,19 +379,26 @@ async def mail_time_call(query: CallbackQuery, bot: Bot) -> None:
     )
     
      
-@router.callback_query(F.data.in_(["seven_pm", "eight_pm", 
-                                    "nine_pm", "ten_pm", 
-                                    "pm"]))
+@router.callback_query(F.data.in_([
+    "seven_pm",
+    "eight_pm", 
+    "nine_pm",
+    "ten_pm", 
+    "pm"
+]))
 @inject
-async def scheduler(query: CallbackQuery, bot: Bot, 
-                    settings_service: Annotated[SettingsService, Depends()],
-                    mailing_service: Annotated[MailingService, Depends()],
-                    event_chat: Chat) -> None:
+async def schedule_handler(
+    query: CallbackQuery,
+    bot: Bot, 
+    settings_service: Annotated[SettingsService, Depends()],
+    scheduler: AsyncIOScheduler,
+    event_chat: Chat,
+    mailing_manager: Annotated[AutoMailingManager, Depends()],
+) -> None:
     user_id = query.from_user.id
     user_settings = await settings_service.get_user_settings_content(user_id=user_id)
     current_time = datetime.datetime.now()
     
-
     updated_time = current_time + datetime.timedelta(minutes=5)
     updated_time_str = updated_time.strftime('%H:%M')    
     frequency_map = {
@@ -400,7 +415,28 @@ async def scheduler(query: CallbackQuery, bot: Bot,
     await settings_service.update_settings(user_id=query.from_user.id, schedule_time=schedule_time)
     await query.answer(f"Время отправки обновлено: {schedule_time}")
     if user_settings.is_turned_on:
-        await mailing_service.turn_on_mailing(user_id=user_id, bot=bot, event_chat=event_chat)
+        schedule_time = await settings_service.get_user_scheduler(user_id=user_id)
+
+        if schedule_time:
+            try:
+                job = scheduler.get_jobs()
+                if job:
+                    scheduler.remove_job('auto')
+                    
+                scheduler.add_job(
+                    func=AutoMailingManager.mailing,
+                    trigger="cron",
+                    hour=schedule_time.hour,
+                    minute=schedule_time.minute,
+                    kwargs={'user_id': user_id, 'bot': bot, 'event_chat': event_chat}, 
+                    id='auto'
+                )
+                await settings_service.update_settings(user_id=user_id, is_turned_on=True)
+            except SMTPAuthenticationError:
+                await bot.send_message(
+                    chat_id=event_chat.id,
+                    text='Не удалось аутенцифитироваться в вашем аккаунте'
+                )
     
 
 @router.callback_query(F.data == "self_mailing")
@@ -412,72 +448,91 @@ async def self_mailing_call(query: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(F.data.in_(['repeat_registration', 'registration']))
 @inject
-async def connect_call(query: CallbackQuery, state: FSMContext,
-                       user_service: Annotated[UserService, Depends()],
-                       settings_service: Annotated[SettingsService, Depends()]) -> None:
+async def connect_call(
+    query: CallbackQuery,
+    state: FSMContext,
+    user_service: Annotated[UserService, Depends()],
+    settings_service: Annotated[SettingsService, Depends()]
+) -> None:
     await user_service.save_user(User(user_id=query.from_user.id))
     await settings_service.save_user_settings(Settings(user_id=query.from_user.id))
     
-    await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
-    await query.message.edit_text(text=get_registration_info(),
-                               disable_web_page_preview=True)
+    await query.message.edit_text(text=get_registration_info(), disable_web_page_preview=True)
     await query.message.answer(get_send_gmail())
+    await state.set_state(RegistrationStatesGroup.WAIT_FOR_EMAIL)
 
 
 @router.callback_query(F.data == "turn_on_mailing")
 @inject
 async def turn_on_mailing_call(
     query: CallbackQuery,
-    mailing_service: Annotated[MailingService, Depends()],
     settings_service: Annotated[SettingsService, Depends()],
+    mailing_manager: Annotated[AutoMailingManager, Depends()],
     bot: Bot,
-    event_chat: Chat
+    event_chat: Chat,
+    scheduler: AsyncIOScheduler,
 ) -> None:
     user_id = query.from_user.id
-    user_settings = await settings_service.get_user_settings_content(user_id=user_id)
-    current_frequency = user_settings.frequency
-    if current_frequency == 1:
-        selected_frequency = 'Ежедневно'
-    else:
-        selected_frequency = f'Раз в {current_frequency} дня'
-    
-    try:
-        await mailing_service.turn_on_mailing(user_id=user_id, bot=bot, event_chat=event_chat)
-        await bot.edit_message_text(
-            text=get_auto_mailing_settings_info(user_settings),
-            chat_id=query.message.chat.id,
-            message_id=query.message.message_id,
-            reply_markup=inline.turned_off_settings_choice_markup
-        )
-        await query.answer(f"Вы включили авто-рассылку!\n({selected_frequency} в {user_settings.schedule_time})")
+    schedule_time = await settings_service.get_user_scheduler(user_id=user_id)
 
-    except SchedulerNotSetError:
-        await query.answer("У вас не установлено время отправки!")
-    except EmailNotAddedError:
-        await query.answer("Добавьте почты!")
-    except AudioNotAddedError:
-        await query.answer("Добавьте аудио!")
-    except EmailAudioNotAddedError:
-        await query.answer("Добавьте аудио и почты получателей!")
+    if schedule_time:
+        try:
+            settings = await settings_service.get_settings(user_id=user_id)
+            job = scheduler.get_jobs()
+            if job:
+                scheduler.remove_job(str(user_id))
 
+            scheduler.add_job(
+                func=mailing_manager.mailing_executor,
+                trigger="cron",
+                day=f"*/{settings.frequency}",
+                hour=schedule_time.hour,
+                minute=schedule_time.minute,
+                kwargs={'user_id': user_id, 'bot': bot, 'event_chat': event_chat}, 
+                id=str(user_id)
+            )
+            await settings_service.update_settings(user_id=user_id, is_turned_on=True)
+            await bot.edit_message_text(
+                text=get_auto_mailing_settings_info(settings),
+                chat_id=query.message.chat.id,
+                message_id=query.message.message_id,
+                reply_markup=inline.turned_off_settings_choice_markup
+            )
+
+            if settings.frequency == 1:
+                selected_frequency = 'Ежедневно'
+            else:
+                selected_frequency = f'Раз в {settings.frequency} дня'
+            await query.answer(f"Вы включили авто-рассылку!\n({selected_frequency} в {settings.schedule_time})")
+        except SMTPAuthenticationError:
+            await bot.send_message(chat_id=event_chat.id, text='Не удалось аутенцифитироваться в вашем аккаунте')
+        except EmptyListError:
+            await bot.send_message(chat_id=user_id, text='Список доступных почт для отправки закончился. Пополните список почт, либо список аудио')
 
 
 @router.callback_query(F.data == "turn_off_mailing")
 @inject
 async def turn_off_mailing_call(
     query: CallbackQuery,
-    mailing_service: Annotated[MailingService, Depends()],
     settings_service: Annotated[SettingsService, Depends()],
+    scheduler: AsyncIOScheduler,
     bot: Bot
 ) -> None:
     user_id = query.from_user.id
     user_settings = await settings_service.get_user_settings_content(user_id=user_id)
 
-    await mailing_service.turn_off_scheduler(user_id=user_id)
-    await bot.edit_message_text(
-        text=get_auto_mailing_settings_info(user_settings),
-        chat_id=query.message.chat.id,
-        message_id=query.message.message_id,
-        reply_markup=inline.turned_on_settings_choice_markup
-    )
-    await query.answer("Вы выключили авто-рассылку")
+    try:
+        job = scheduler.get_job('MailingService.auto_mailing_starter')
+        if job:
+            scheduler.remove_job('MailingService.auto_mailing_starter')
+            await settings_service.update_settings(user_id=user_id, is_turned_on=False) 
+    except Exception as _ex:
+        print(_ex)
+    finally:
+        await bot.edit_message_text(
+            text=get_auto_mailing_settings_info(user_settings),
+            chat_id=query.message.chat.id,
+            message_id=query.message.message_id,
+            reply_markup=inline.turned_on_settings_choice_markup
+        )
+        await query.answer("Вы выключили авто-рассылку")

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, async_sessi
 
 from app.main.config import DATABASE_URL
 
-from app.services import UserService, SettingsService, EmailService, AudioService, MailingService
+from app.services import UserService, SettingsService, EmailService, AudioService, MailingService, ExtraMailing, AutoMailingManager
 from app.data.dal import UserDAL, UserEmailDAL, UserAudioDAL, EmailSettingsDAL
 from app.bot.utils import Encryption
 
@@ -40,3 +40,5 @@ class ServiceProvider(Provider):
     audio_service = provide(AudioService, scope=Scope.REQUEST, provides=AudioService)
     mailing_service = provide(MailingService, scope=Scope.REQUEST, provides=MailingService)
     encryption = provide(Encryption, scope=Scope.REQUEST, provides=Encryption)
+    extra_mailing = provide(ExtraMailing, scope=Scope.REQUEST, provides=ExtraMailing)
+    mailing_manager = provide(AutoMailingManager, scope=Scope.REQUEST, provides=AutoMailingManager)

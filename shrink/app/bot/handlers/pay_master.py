@@ -1,15 +1,14 @@
 from typing import Annotated
+
 from aiogram import Router,Bot,F
 from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, CallbackQuery, ContentType
-from app.services import UserService
+
 from dishka.integrations.aiogram import inject, Depends
 
-from app.bot.keyboard import inline
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from app.models.user import UserSubscription
-from app.services.settings_service import SettingsService
-from app.services.mailing_service import MailingService
-from app.services.email_service import EmailService
-from app.services.audio_service import AudioService
+from app.services import UserService, SettingsService, MailingService, EmailService, AudioService
 
 router=Router()
 
@@ -190,7 +189,8 @@ async def pre_checkout(
     settings_service: Annotated[SettingsService, Depends()], 
     mailing_service: Annotated[MailingService, Depends()], 
     email_service: Annotated[EmailService, Depends()],
-    audio_service: Annotated[AudioService, Depends()]
+    audio_service: Annotated[AudioService, Depends()],
+    scheduler: AsyncIOScheduler
 ) -> None:
     await bot.answer_pre_checkout_query(pre_checkout.id, ok=True)
     total_amount = pre_checkout.total_amount
@@ -286,8 +286,26 @@ async def pre_checkout(
         await user_service.update_user(user_id=user_id, sub_duration=90)
     else:
         await user_service.update_user(user_id=user_id, sub_duration=180)
-    await mailing_service.update_sub_duration(user_id=user_id, bot=bot)
-    await mailing_service.update_email_limit_to_send_for_extra(user_id=user_id, bot=bot)
+
+    sub = await user_service.get_sub_duration(user_id)
+    if sub >= 0:
+        scheduler.add_job(
+        func=user_service.update_sub_duration,
+        trigger="cron",
+        hour=0,
+        minute=0,
+        kwargs={'user_id': user_id, 'bot': bot}
+    )
+    scheduler.add_job(
+        func=user_service.update_email_limit_to_send_for_extra,
+        trigger="cron",
+        hour=0,
+        minute=0,
+        kwargs={'user_id': user_id, 'bot': bot}
+    )
+    scheduler.start()
+    # await mailing_service.update_sub_duration(user_id=user_id, bot=bot)
+    # await mailing_service.update_email_limit_to_send_for_extra(user_id=user_id, bot=bot)
         
 
 #УСПЕШНАЯ ОПЛАТА
