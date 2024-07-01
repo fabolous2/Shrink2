@@ -28,8 +28,6 @@ async def main() -> None:
         level=logging.INFO,
         format=u'%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s',
     )
-<<<<<<< HEAD
-
     storage = RedisStorage.from_url('redis://localhost:6379/0')
     jobstores = {
     'default': RedisJobStore(
@@ -42,23 +40,8 @@ async def main() -> None:
     }
     scheduler = ContextSchedulerDecorator(AsyncIOScheduler(timezone="Europe/Moscow", jobstores=jobstores)) 
 
-    bot = Bot(token="6834344430:AAGiXiTYTK8zjXTpjTTBLksv00hRCYkmM4s", default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dispatcher = Dispatcher(scheduler=scheduler, storage=storage)   
-=======
-    storage = RedisStorage.from_url('redis://localhost:6379/0')
-    jobstores = {
-        'default': RedisJobStore(
-            jobs_key='dispatched_trips_jobs',
-            run_times_key='dispatched_trips_running',
-            db=2,
-            host='localhost',
-            port=6379
-        )
-    }
-    scheduler = ContextSchedulerDecorator(AsyncIOScheduler(timezone="Europe/Moscow", jobstores=jobstores)) 
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dispatcher = Dispatcher(scheduler=scheduler, storage=storage) 
->>>>>>> 346227bef18515f018eca06cb3b00890edc3adb3
+    dispatcher = Dispatcher(scheduler=scheduler, storage=storage)   
     scheduler.ctx.add_instance(instance=bot, declared_class=Bot)
 
     dispatcher.message.middleware.register(MailChatActionMiddleware(router=dispatcher))
